@@ -17,7 +17,7 @@
 #Een .env-bestand met DATABASE_URL=sqlite:////app/app.db.
 #Je lokale app.db in C:<pad naar jou famplan/project>
 
-##Container Draaien
+##Container runnen
 #Start de container met een volume-mount om je database persistent te maken:
 
 #docker run -p 5000:5000 --env-file .env -v "<pad naar app.db>:/app/app.db" --name famplan-app famplan
