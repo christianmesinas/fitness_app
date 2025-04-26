@@ -1,44 +1,456 @@
 
-        .container {
-            text-align: center;
-        }
-        button {
-            padding: 10px 20px;
-            margin: 10px;
-            font-size: 16px;
-            cursor: pointer;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 5px;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
+        /* styles.css */
 
-        .form-container {
-            background-color: white;
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        input {
-            display: block;
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-        button {
-            width: 100%;
-            padding: 10px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body, html {
+  font-family: 'Arial', sans-serif;
+}
+
+h1 {
+  font-size: 32px;
+  font-weight: bold;
+  color: black;
+}
+
+p {
+  font-size: 16px;
+  color: black;
+  line-height: 1.5;
+}
+
+input:focus {
+    outline:none;
+}
+
+input {
+  padding-left: 30px;
+}
+
+/* buttons */
+
+.orange-btn {
+  display: inline-block;
+  background-color: #FF914B;
+  border: none;
+  border-radius: 10px;
+  color: white;
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+  margin-bottom: 30px;
+  text-decoration: none;
+  width: 100%;
+  max-width: 260px;
+  height: 50px;
+  padding: 17px 5px;
+}
+
+.orange-btn:hover {
+  background-color: #e67c3c;
+}
+
+.white-btn {
+  display: inline-block;
+  background-color: white;
+  border: none;
+  border-radius: 10px;
+  color: black;
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+  margin-bottom: 30px;
+  text-decoration: none;
+  width: 100%;
+  max-width: 260px;
+  height: 50px;
+  padding: 17px 5px;
+}
+
+.white-btn:hover {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.circle-add-button {
+  text-decoration: none;
+  font-size: 36px;
+  background-color: #FF914B;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: black;
+}
+
+/* navigation */
+
+.navbar {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  background-color: #fff;
+  border-top: 1px solid #ccc;
+  padding: 10px;
+  z-index: 1000;
+  background-color: white;
+  height: 60px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;
+}
+
+/* Navbar links */
+.navbar a {
+  float: left;
+  display: block;
+  color: black;
+  text-align: center;
+  padding: 20px;
+  text-decoration: none;
+}
+
+/* start page */
+
+.container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.top-background {
+  background-color: #FF914B;
+  clip-path: circle(60% at 50% 0px);
+  width: 100%;
+  height: 100%;
+  position: absolute;
+}
+
+.character {
+  padding-top: 60px;
+  max-width: 200px;
+  width: 125px;
+  height: auto;
+  margin-bottom: 2rem;
+  z-index: 2;
+}
+
+.start-page-content {
+  text-align: center;
+  z-index: 2;
+  width: 90%;
+  margin: auto;
+}
+
+.start-page-content h1 {
+  margin-bottom: 30px;
+}
+
+.start-page-content p {
+  margin-top: 10px;
+  margin-bottom: 50px;
+}
+
+
+
+.login-text {
+  font-size: 15px;
+}
+
+.login-text a {
+  color: #000;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+@media (min-width: 600px) {
+
+  .character {
+    max-width: 200px;
+    width: 60%;
+    height: auto;
+    margin-bottom: 2rem;
+  }
+
+  .top-background {
+    clip-path: ellipse(56% 32% at 50% 7%);
+  }
+
+}
+
+/* questionnaire */
+
+.page-title {
+  font-size: 32px;
+  width: 80%;
+  margin: auto;
+  margin-top: 70px;
+}
+
+.orange-section-bottom {
+  clip-path: circle(80% at 50% 90%);
+  background-color: #FF914B;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  position: absolute;
+  z-index: 1;
+  min-height: 800px;
+}
+
+.question-section {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, 20%);
+  z-index: 3;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.question-section * {
+  width: 80%;
+  max-width: 400px;
+}
+
+.question-label {
+  color: black;
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 30px;
+}
+
+.question-input {
+  background: rgba(255, 255, 255, 0.8);
+  border: none;
+  height: 43px;
+  margin-bottom: 50px;
+  margin-top: 20px;
+}
+
+@media (min-width: 600px) {
+
+  .orange-section-bottom {
+    clip-path: ellipse(80% 70% at 50% 100%);
+  }
+
+}
+
+/* range slider styling */
+
+.question-range {
+  background: rgba(255, 255, 255, 0.8);
+  border: none;
+  height: 43px;
+  margin-top: 20px;
+  text-align: center;
+  width: 100%;
+  padding-left: 0;
+  margin-bottom: 20px;
+}
+
+.weight-number-under-range {
+  margin-bottom: 40px;
+  display: flex;
+  justify-content: center;
+  color: black;
+  font-size: 40px;
+}
+
+.question-range {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 15px;
+  border-radius: 5px;
+  background: white;
+  outline: none;
+  opacity: 1;
+  -webkit-transition: .2s;
+  transition: opacity .2s;
+}
+
+.question-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background: black;
+  cursor: pointer;
+}
+
+.question-range::-moz-range-thumb {
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background: white;
+  cursor: pointer;
+}
+
+/* home tempalte */
+
+.home-intro {
+  background-color: #FF914B;
+  padding-bottom: 60px;
+}
+
+.home-intro * {
+  width: 80%;
+  margin: auto;
+  max-width: 700px;
+}
+
+.home-welcome {
+  padding-top: 60px;
+}
+
+.home-stats-section {
+  background-color: rgba(255, 255, 255, 0.3);
+  color: black;
+  margin-top: 60px;
+  border-radius: 10px;
+  display: flex;
+  padding: 40px;
+  flex-direction: row;
+  gap: 60px;
+  flex-wrap: wrap;
+}
+
+.home-stats-section * {
+  text-align: center;
+}
+
+.home-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 120px;
+}
+
+.stats-large-number {
+  font-size: 32px;
+  font-weight: bold;
+}
+
+.workout-blok-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 40px;
+  margin-top: 80px;
+}
+
+.workout-block {
+  max-width: 700px;
+  background-color: #F2F2F2;
+  border-radius: 10px;
+  width: 90%;
+  padding: 40px;
+  position: relative;
+  height: 200px;
+}
+
+.workout-start-btn {
+  position: absolute;
+  bottom: 0;
+  text-align: center;
+}
+
+.setting-dots-workout {
+  color: black;
+  text-decoration: none;
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  font-size: 20px;
+  height: 50px;
+  width: 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+}
+
+.add-new-workout-btn {
+  width: 90%;
+  max-width: 700px;
+  text-align: center;
+  margin-top: 40px;
+  margin-bottom: 60px;
+}
+
+/* add workout template */
+
+.pencil-icon {
+  width: 25px;
+  height: 25px;
+}
+
+.new-workout-header {
+  width: 90%;
+  margin: auto;
+  max-width: 700px;
+  margin-top: 50px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.workout-name {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.exercise-blok-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 40px;
+  margin-top: 80px;
+}
+
+.exercise-block {
+  position: relative;
+  max-width: 700px;
+  background-color: #F2F2F2;
+  border-radius: 10px;
+  width: 90%;
+  padding: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.exercise-block img {
+  max-width: 180px;
+  max-height: 120px;
+  border-radius: 10px;
+  width: 90%
+}
+
+.exercise-text {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+@media (min-width: 500px) {
+
+  .exercise-block {
+    flex-direction: row;
+  }
+
+}
