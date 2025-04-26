@@ -1,7 +1,7 @@
 from flask import session, render_template, flash, redirect, url_for, request, g, current_app, jsonify
 from flask_babel import _, get_locale
 import sqlalchemy as sa
-from app import db, oauth  # Gebruik oauth in plaats van auth0
+from app import db, oauth
 from app.forms import PostForm, EditProfileForm, EmptyForm, MessageForm
 from app.models import User, Post, Message, Notification
 from langdetect import detect, LangDetectException
@@ -22,12 +22,10 @@ def get_current_user():
     return None
 
 def register_routes(app):
-    # Contextprocessor
     @app.context_processor
     def inject_current_user():
         return dict(get_current_user=get_current_user)
 
-    # Before request
     @app.before_request
     def before_request():
         user = get_current_user()
@@ -36,20 +34,69 @@ def register_routes(app):
             db.session.commit()
         g.locale = str(get_locale())
 
-    @app.route('/login')
+    @app.route('/', methods=['GET', 'POST'])
+    def index():
+        if 'user' not in session:
+            current_app.logger.debug('Rendering landing.html')
+            return render_template('landings.html', title=_('Welcome to fitrack'))
+        user = get_current_user()
+        if user is None:
+            current_app.logger.error("User is None despite session, forcing logout")
+            session.clear()
+            return redirect(url_for('login'))
+        form = PostForm()
+        if form.validate_on_submit():
+            try:
+                language = detect(form.post.data)
+            except LangDetectException:
+                language = ''
+            post = Post(body=form.post.data, author=user, language=language)
+            db.session.add(post)
+            db.session.commit()
+            flash(_('Your post is now live!'))
+            return redirect(url_for('index'))
+        page = request.args.get('page', 1, type=int)
+        posts = db.paginate(user.following_posts(), page=page,
+                            per_page=current_app.config['POSTS_PER_PAGE'], error_out=False)
+        next_url = url_for('index', page=posts.next_num) if posts.has_next else None
+        prev_url = url_for('index', page=posts.prev_num) if posts.has_prev else None
+        return render_template('index.html', title=_('Home'), form=form,
+                               posts=posts.items, next_url=next_url, prev_url=prev_url)
+
+    @app.route('/login', methods=['GET', 'POST'])
     def login():
         if 'user' in session:
             return redirect(url_for('index'))
-        return oauth.auth0.authorize_redirect(redirect_uri='http://localhost:5000/callback')
+        current_app.logger.debug('Initiating Auth0 login')
+        callback_url = app.config.get('AUTH0_CALLBACK_URL')
+        if not callback_url:
+            current_app.logger.error("AUTH0_CALLBACK_URL is not set in app.config")
+            return "Configuration error: AUTH0_CALLBACK_URL is missing", 500
+        return oauth.auth0.authorize_redirect(redirect_uri=callback_url)
+
+    @app.route('/signup', methods=['GET', 'POST'])
+    def signup():
+        if 'user' in session:
+            return redirect(url_for('index'))
+        current_app.logger.debug('Initiating Auth0 signup')
+        callback_url = app.config.get('AUTH0_CALLBACK_URL')
+        if not callback_url:
+            current_app.logger.error("AUTH0_CALLBACK_URL is not set in app.config")
+            return "Configuration error: AUTH0_CALLBACK_URL is missing", 500
+        authorize_params = {'screen_hint': 'signup'}
+        return oauth.auth0.authorize_redirect(
+            redirect_uri=callback_url,
+            **authorize_params
+        )
 
     @app.route('/callback')
     def callback():
         try:
             token = oauth.auth0.authorize_access_token()
-            app.logger.debug(f"Token received: {token}")
+            current_app.logger.debug(f"Token received: {token}")
             session['user'] = token
             user_info = token['userinfo']
-            app.logger.debug(f"User info: {user_info}")
+            current_app.logger.debug(f"User info: {user_info}")
             user = db.session.scalar(sa.select(User).where(User.email == user_info['email']))
             if not user:
                 user = User(
@@ -58,14 +105,14 @@ def register_routes(app):
                 )
                 db.session.add(user)
                 db.session.commit()
-                app.logger.debug(f"New user added: {user.email}")
+                current_app.logger.debug(f"New user added: {user.email}")
             else:
-                app.logger.debug(f"Existing user found: {user.email}")
-            app.logger.debug(f"Session after callback: {session}")
+                current_app.logger.debug(f"Existing user found: {user.email}")
+            current_app.logger.debug(f"Session after callback: {session}")
             return redirect(url_for('index'))
         except Exception as e:
-            app.logger.error(f"Error in callback: {str(e)}")
-            return "An error occurred during login", 500
+            current_app.logger.error(f"Error in callback: {str(e)}")
+            return f"An error occurred during login: {str(e)}", 500
 
     @app.route('/logout')
     def logout():
@@ -90,36 +137,6 @@ def register_routes(app):
             db.session.commit()
             app.logger.debug(f"User created: {user.email}")
         return jsonify({'message': 'User created'}), 201
-
-    @app.route('/', methods=['GET', 'POST'])
-    @app.route('/index', methods=['GET', 'POST'])
-    def index():
-        if 'user' not in session:
-            app.logger.debug("No user in session, redirecting to login")
-            return redirect(url_for('login'))
-        user = get_current_user()
-        if user is None:
-            app.logger.error("User is None despite session, forcing logout")
-            session.clear()
-            return redirect(url_for('login'))
-        form = PostForm()
-        if form.validate_on_submit():
-            try:
-                language = detect(form.post.data)
-            except LangDetectException:
-                language = ''
-            post = Post(body=form.post.data, author=user, language=language)
-            db.session.add(post)
-            db.session.commit()
-            flash(_('Your post is now live!'))
-            return redirect(url_for('index'))
-        page = request.args.get('page', 1, type=int)
-        posts = db.paginate(user.following_posts(), page=page,
-                            per_page=app.config['POSTS_PER_PAGE'], error_out=False)
-        next_url = url_for('index', page=posts.next_num) if posts.has_next else None
-        prev_url = url_for('index', page=posts.prev_num) if posts.has_prev else None
-        return render_template('index.html', title=_('Home'), form=form,
-                               posts=posts.items, next_url=next_url, prev_url=prev_url)
 
     @app.route('/explore')
     def explore():

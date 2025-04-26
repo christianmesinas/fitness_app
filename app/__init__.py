@@ -29,7 +29,13 @@ def create_app():
     app.secret_key = os.getenv('APP_SECRET_KEY')
 
     # Stel Redis-configuratie in
-    app.config['REDIS_URL'] = Config.REDIS_URL  # Haal dit uit config.py
+    app.config['REDIS_URL'] = Config.REDIS_URL
+
+    # Log Auth0-configuratie voor debugging
+    app.logger.debug(f"AUTH0_CLIENT_ID: {app.config.get('AUTH0_CLIENT_ID')}")
+    app.logger.debug(f"AUTH0_CLIENT_SECRET: {app.config.get('AUTH0_CLIENT_SECRET')}")
+    app.logger.debug(f"AUTH0_DOMAIN: {app.config.get('AUTH0_DOMAIN')}")
+    app.logger.debug(f"AUTH0_CALLBACK_URL: {app.config.get('AUTH0_CALLBACK_URL')}")
 
     db.init_app(app)
     migrate.init_app(app, db)
@@ -40,9 +46,9 @@ def create_app():
 
     oauth.register(
         'auth0',
-        client_id=os.getenv('AUTH0_CLIENT_ID'),
-        client_secret=os.getenv('AUTH0_CLIENT_SECRET'),
-        server_metadata_url=f"https://{os.getenv('AUTH0_DOMAIN')}/.well-known/openid-configuration",
+        client_id=app.config['AUTH0_CLIENT_ID'],
+        client_secret=app.config['AUTH0_CLIENT_SECRET'],
+        server_metadata_url=f"https://{app.config['AUTH0_DOMAIN']}/.well-known/openid-configuration",
         client_kwargs={'scope': 'openid profile email'},
     )
 
@@ -61,21 +67,21 @@ def create_app():
             mail_handler = SMTPHandler(
                 mailhost=(app.config['MAIL_SERVER'], app.config['MAIL_PORT']),
                 fromaddr='no-reply@' + app.config['MAIL_SERVER'],
-                toaddrs=app.config['ADMINS'], subject='famplan Failure',
+                toaddrs=app.config['ADMINS'], subject='fitrack Failure',
                 credentials=auth, secure=secure)
             mail_handler.setLevel(logging.ERROR)
             app.logger.addHandler(mail_handler)
 
         if not os.path.exists('logs'):
             os.mkdir('logs')
-        file_handler = RotatingFileHandler('logs/famplan.log', maxBytes=10240, backupCount=10)
+        file_handler = RotatingFileHandler('logs/fitrack.log', maxBytes=10240, backupCount=10)
         file_handler.setFormatter(logging.Formatter(
             '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
         file_handler.setLevel(logging.INFO)
         app.logger.addHandler(file_handler)
 
         app.logger.setLevel(logging.INFO)
-        app.logger.info('famplan startup')
+        app.logger.info('fitrack startup')
 
     from app import routes, models, errors
     routes.register_routes(app)

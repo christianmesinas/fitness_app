@@ -16,7 +16,7 @@ class Config:
     MAIL_USE_TLS = os.getenv('MAIL_USE_TLS') == 'True'
     MAIL_USERNAME = os.getenv('MAIL_USERNAME')
     MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
-    ADMINS = ['chris1991.cg@gmail.com']
+    ADMINS = ['ADMINS']
     LANGUAGES= ['en', 'es']
     MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER')
     MS_TRANSLATOR_KEY = os.environ.get('MS_TRANSLATOR_KEY')
@@ -27,3 +27,4 @@ class Config:
     AUTH0_DOMAIN = os.getenv('AUTH0_DOMAIN')
     AUTH0_CLIENT_ID = os.getenv('AUTH0_CLIENT_ID')
     AUTH0_CLIENT_SECRET = os.getenv('AUTH0_CLIENT_SECRET')
+    AUTH0_CALLBACK_URL = os.getenv('AUTH0_CALLBACK_URL')

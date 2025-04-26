@@ -10,5 +10,5 @@ services:
     volumes:
       - .:/app
     environment:
-      - FLASK_APP=famplan.py
+      - FLASK_APP=fittrack.py
       - FLASK_ENV=development

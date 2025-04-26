@@ -1,34 +1,35 @@
 ### docker start met env file
 
-# in famplan folder
-# docker run -p 5000:5000 --env-file .env famplan
+# in fitness folder
+# docker run -p 5000:5000 --env-file .env fitness
 
 # bouw eerst een docker container
-# docker build -t famplan .
+# docker build -t fitness .
 
 #test Stijn
 
-##famplan Docker Container Beheer
-#Dit document beschrijft hoe je je Flask famplan-applicatie in een Docker-container kunt draaien, stoppen, en herstarten met een persistente database (app.db).
+##fitness Docker Container Beheer
+#Dit document beschrijft hoe je je Flask fitness-applicatie in een Docker-container kunt draaien, stoppen, en herstarten met een persistente database (app.db).
 
 ##Vereisten
 #Docker geïnstalleerd op je systeem.
-#Een werkende famplan-image gebouwd met docker build -t famplan ..
+#Een werkende fitness-image gebouwd met docker build -t fitness ..
 #Een .env-bestand met DATABASE_URL=sqlite:////app/app.db.
-#Je lokale app.db in C:<pad naar jou famplan/project>
+#Je lokale app.db in C:<pad naar jou fitness/project>
 
 ##Container runnen
 #Start de container met een volume-mount om je database persistent te maken:
 
-#docker run -p 5000:5000 --env-file .env -v "<pad naar app.db>:/app/app.db" --name famplan-app famplan
+#docker run -p 5000:5000 --env-file .env -v "<pad naar app.db>:/app/app.db" --name fitness-app fitness
 
 #-p 5000:5000: Maakt de app beschikbaar op http://localhost:5000.
 
-#na het bouwen van de container met de naam famplan moet je deze commando runnen
+#na het bouwen van de container met de naam fitness moet je deze commando runnen
 
-#docker run -p 5000:5000 --env-file .env -v "<pad naar app.db>:/app/app.db" famplan
+#docker run -p 5000:5000 --env-file .env -v "<pad naar app.db>:/app/app.db" fitness
 
 deze commando runnen zodat je container niet moet rebooten hele tijd
 docker-compose up --build
 
 ##nog te doen als een gebruiker is verwijdert moeten ook de bijhorende post worden verwijderd
+
