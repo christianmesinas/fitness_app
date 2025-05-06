@@ -1,31 +1,61 @@
-<!-- app/templates/index.html -->
 {% extends "base.html" %}
 {% import "bootstrap_wtf.html" as wtf %}
 
 {% block content %}
     {% if current_user %}
-        <h1>{{ 'Hi, %s!', current_user.username }}</h1>
+        <section class="home-intro">
+            <h1 class="home-welcome">Hi, {{ current_user.username }}!</h1>
+            <section class="home-stats-section">
+                <div class="home-stats">
+                    <p>This week</p>
+                    <p class="stats-large-number">4</p>
+                    <p>workouts</p>
+                </div>
+                <div class="home-stats">
+                    <p>This month</p>
+                    <p class="stats-large-number">12</p>
+                    <p>workouts</p>
+                </div>
+            </section>
+        </section>
+
+        <section class="workout-blok-section">
+            {% for post in posts %}
+                <section class="workout-block">
+                    <h2>{{ post.title }}</h2>
+                    <a href="#" class="orange-btn workout-start-btn">Start</a>
+                    <a href="#" class="setting-dots-workout">...</a>
+                </section>
+            {% endfor %}
+
+            <a href="#" class="orange-btn-outline add-new-workout-btn home-btn">Add new workout</a>
+        </section>
+
+        <nav aria-label="Post navigation">
+            <ul class="pagination">
+                <li class="page-item{% if not prev_url %} disabled{% endif %}">
+                    <a class="page-link" href="{{ prev_url }}">
+                        <span aria-hidden="true">←</span> Newer posts
+                    </a>
+                </li>
+                <li class="page-item{% if not next_url %} disabled{% endif %}">
+                    <a class="page-link" href="{{ next_url }}">
+                        Older posts <span aria-hidden="true">→</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
     {% else %}
-        <h1>{{ 'Welcome to FitTrack' }}</h1>
+        <h1>Welcome to FitTrack</h1>
+        {% if form %}
+            {{ wtf.quick_form(form) }}
+        {% endif %}
     {% endif %}
-    {% if form %}
-        {{ wtf.quick_form(form) }}
-    {% endif %}
-    {% for post in posts %}
-        {% include '_post.html' %}
-    {% endfor %}
-    <nav aria-label="Post navigation">
-        <ul class="pagination">
-            <li class="page-item{% if not prev_url %} disabled{% endif %}">
-                <a class="page-link" href="{{ prev_url }}">
-                    <span aria-hidden="true">&larr;</span> {{ 'Newer posts' }}
-                </a>
-            </li>
-            <li class="page-item{% if not next_url %} disabled{% endif %}">
-                <a class="page-link" href="{{ next_url }}">
-                    {{ 'Older posts' }} <span aria-hidden="true">&rarr;</span>
-                </a>
-            </li>
-        </ul>
+
+    <nav class="navbar">
+        <a href="index">Home</a>
+        <a href="#">Weight</a>
+        <a href="#">Stats</a>
+        <a href="#">Settings</a>
     </nav>
 {% endblock %}

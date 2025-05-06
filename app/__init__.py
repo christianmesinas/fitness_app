@@ -25,6 +25,13 @@ def create_app(config_class=Config):
     # Stel Redis-configuratie in
     app.config['REDIS_URL'] = config_class.REDIS_URL
     app.config['POSTS_PER_PAGE'] = 10
+    app.config['SESSION_COOKIE_SECURE'] = False  # Zet op True in productie
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    app.config['PERMANENT_SESSION_LIFETIME'] = 3600
+    app.config['SESSION_COOKIE_NAME'] = 'fittrack_session'
+
+    app.logger.debug(f"Session config: {app.config.get_namespace('SESSION_')}")
 
     # Initialiseer extensies met app
     db.init_app(app)
@@ -39,12 +46,11 @@ def create_app(config_class=Config):
         client_id=app.config['AUTH0_CLIENT_ID'],
         client_secret=app.config['AUTH0_CLIENT_SECRET'],
         server_metadata_url=f"https://{app.config['AUTH0_DOMAIN']}/.well-known/openid-configuration",
-        client_kwargs={'scope': 'openid profile email'},
+        client_kwargs={
+            'scope': 'openid profile email',
+            'prompt': 'login',
+        },
     )
-
-    # Overschrijf _ functie om vertalingen uit te schakelen
-    import builtins
-    builtins._ = lambda x: x
 
     # Importeer Blueprints
     from app.api import bp as api_bp
@@ -62,8 +68,5 @@ def create_app(config_class=Config):
     app.register_blueprint(errors_bp)
     app.register_blueprint(main_bp)
 
-    # Initialiseer database binnen app context
-    with app.app_context():
-        db.create_all()
 
     return app

@@ -459,3 +459,331 @@ margin-right: auto;
   }
 
 }
+
+
+.top-bar {
+  width: 100%;
+  background-color: #FF914B;
+  height: 60px;
+  display: flex;
+  align-items: center;
+}
+
+.back-icon {
+  margin-left: 40px;
+}
+
+
+/* add your own exercise template */
+
+.form-container {
+  width: 90%;
+  max-width: 700px;
+  margin: auto;
+  margin-top: 80px;
+}
+
+label {
+  display: block;
+  margin-bottom: 15px;
+  font-style: italic;
+}
+
+.form-group {
+  margin-bottom: 40px;
+  margin-top: 40px;
+}
+
+input[type="file"],
+input[type="text"],
+input[type="number"],
+input[type="url"],
+textarea {
+  width: 100%;
+  padding: 12px 15px;
+  border: none;
+  border-radius: 8px;
+  box-sizing: border-box;
+  background-color: #F2F2F2;
+  font-size: 16px;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+textarea {
+  height: 120px;
+  resize: vertical;
+}
+
+.submit-btn {
+  width: 100%;
+  max-width: 700px;
+  margin-top: 30px;
+}
+
+/* search exercise library */
+
+select {
+  width: 100%;
+  padding: 12px 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-sizing: border-box;
+  background-color: #F2F2F2;
+  font-size: 16px;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+/* search results template  */
+
+.add-exercise {
+  color: #FF914B;
+  text-decoration: none;
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  font-size: 30px;
+  height: 50px;
+  width: 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.search-tags {
+  display: flex;
+  width: 90%;
+  max-width: 700px;
+  gap: 30px;
+  margin: auto;
+  margin-top: 30px;
+  flex-wrap: wrap;
+}
+
+.search-tags p {
+  background-color: #F2F2F2;
+  padding: 5px 20px;
+  color: #7A7A7A;
+  font-style: italic;
+  font-size: 14px;
+}
+
+/* search single exercise page */
+
+.exercise-labels-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  gap: 1rem;
+  margin-top: 10px;
+  margin-bottom: 40px;
+}
+
+.exercise-labels-list li {
+  background-color: #F2F2F2;
+  padding: 5px 20px;
+  color: #7A7A7A;
+  font-style: italic;
+  font-size: 14px;
+}
+
+.single-exercise-page {
+  width: 90%;
+  max-width: 700px;
+  margin: auto;
+  margin-top: 60px;
+}
+
+.single-exercise-page h2 {
+  font-size: 16px;
+  font-weight: normal;
+  font-style: italic;
+  margin-bottom: 10px;
+}
+
+.single-exercise-instructions {
+  margin-bottom: 40px;
+}
+
+.single-exercise-img {
+  margin-bottom: 40px;
+  border-radius: 10px;
+  width: 100%;
+}
+
+.watch-video-btn {
+  max-width: 100%;
+  margin-top: 30px;
+}
+
+
+/* new add exercise template */
+
+.filter-form {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  width: 90%;
+  max-width: 700px;
+  margin: auto;
+}
+
+.filter-form > .form-group {
+  width: 30%;
+}
+
+.form-group-search {
+  width: 100%;
+}
+
+.header-section {
+  position: relative;
+}
+
+.create-exercise {
+  position: absolute;
+  right: 0;
+  font-size: 18px;
+  color: #FF914B;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+/* active workout template */
+
+.active-workout-block {
+  position: relative;
+  max-width: 700px;
+  /* background-color: #F2F2F2; */
+  border: solid 2px #F2F2F2;
+  border-radius: 10px;
+  width: 90%;
+  padding: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  flex-direction: column;
+  gap: 30px;
+}
+
+
+.active-workout-block > .drag-drop-icon {
+  top: 10px;
+}
+
+
+.active-workout-button-section {
+  width: 100%;
+  margin: auto;
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+}
+
+.active-workout-button-section a {
+  min-width: 110px;
+}
+
+.active-workout-block h2 {
+  font-size: 18px;
+  font-weight: normal;
+  font-style: italic;
+  position: absolute;
+  top: 23px;
+}
+
+.set-section {
+  margin-top: 30px;
+}
+
+.active-workout-set {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 20px;
+  margin-top: 20px;
+  justify-content: space-between;
+}
+
+.active-workout-set input {
+  min-width: 85px;
+}
+
+@media (min-width: 500px) {
+
+  .active-workout-set {
+    gap: 30px;
+  }
+
+  .active-workout-button-section {
+    width: 80%;
+    gap: 40px;
+  }
+
+  .set-section {
+    margin-top: 30px;
+    width: 80%;
+  }
+
+}
+
+@media (min-width: 700px) {
+
+  .active-workout-block h2 {
+    left: 15%;
+  }
+
+}
+
+/* custom checkbox styling */
+
+.custom-checkbox {
+    position: relative;
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+}
+
+.custom-checkbox input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.checkmark {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 35px;
+    height: 35px;
+    background-color: #b0b0b0;
+    border-radius: 10%;
+    transition: background-color 0.3s;
+    cursor: pointer;
+}
+
+.custom-checkbox input:checked ~ .checkmark {
+    background-color: #FF914B;
+}
+
+.checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+}
+
+.custom-checkbox input ~ .checkmark:after {
+    display: block;
+}
+
+.custom-checkbox .checkmark:after {
+    left: 13px;
+    top: 9px;
+    width: 6px;
+    height: 12px;
+    border: solid white;
+    border-width: 0 3px 3px 0;
+    transform: rotate(45deg);
+}

@@ -56,7 +56,7 @@ class User(PaginatedAPIMixin, db.Model):
         back_populates='user',
         cascade="all, delete-orphan"
     )
-
+    sub = db.Column(db.String(128), index=True, unique=True)
     about_me: so.Mapped[Optional[str]] = so.mapped_column(sa.String(140))
     last_seen: so.Mapped[Optional[datetime]] = so.mapped_column(default=lambda: datetime.now(timezone.utc))
 
@@ -82,8 +82,7 @@ class User(PaginatedAPIMixin, db.Model):
         return '<User {}>'.format(self.username)
 
     def avatar(self, size):
-        digest = md5(self.email.lower().encode('utf-8')).hexdigest()
-        return f'https://www.gravatar.com/avatar/{digest}?d=identicon&s={size}'
+        return url_for('static', filename='default_avatar.png')
 
     def follow(self, user):
         if not self.is_following(user):
