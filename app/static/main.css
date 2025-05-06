@@ -127,6 +127,7 @@ input {
 }
 
 .top-background {
+  z-index: -1;
   background-color: #FF914B;
   clip-path: circle(60% at 50% 0px);
   width: 100%;
@@ -135,6 +136,10 @@ input {
 }
 
 .character {
+  display: block;
+margin-left: auto;
+margin-right: auto;
+
   padding-top: 60px;
   max-width: 200px;
   width: 125px;

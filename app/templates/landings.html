@@ -1,19 +1,17 @@
 {% extends "base.html" %}
-{% import "bootstrap_wtf.html" as wtf %}
-
 {% block content %}
         <div class="top-background"></div>
     <img src="static/img/girl.png" alt="Character" class="character" />
     <div class="start-page-content">
 
-    <h1>{{ _('Welkom bij fitrack!') }}</h1>
-    <p>{{ _('Kies een optie om verder te gaan:') }}</p>
+    <h1>{{ 'Welkom bij fitrack!'}}</h1>
+    <p>{{ 'Kies een optie om verder te gaan:' }}</p>
     <div class="row justify-content-center">
         <div class="">
-            <a href="{{ url_for('login') }}" class="orange-btn">{{ _('Inloggen') }}</a>
+            <a href="{{ url_for('main.login') }}" class="orange-btn">{{ 'Inloggen' }}</a>
         </div>
         <div class="">
-            <a href="{{ url_for('signup') }}" class="orange-btn">{{ _('Aanmelden') }}</a>
+            <a href="{{ url_for('main.signup') }}" class="orange-btn">{{ 'Aanmelden' }}</a>
         </div>
         </div>
     </div>

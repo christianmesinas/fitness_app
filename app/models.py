@@ -4,12 +4,13 @@ from hashlib import md5
 from typing import Optional
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from app import db  # Behoud db, want dit werkt met factory pattern
+from flask import url_for, current_app
 import json
 import time
 import redis
 import rq
-from flask import current_app  # Gebruik current_app voor app-context
+from app import db
+
 
 class PaginatedAPIMixin(object):
     @staticmethod
@@ -17,7 +18,8 @@ class PaginatedAPIMixin(object):
         resources = db.paginate(query, page=page, per_page=per_page, error_out=False)
         data = {
             'items': [item.to_dict() for item in resources.items],
-            '_meta': {'page': page, 'per_page': per_page, 'total_pages': resources.pages, 'total_items': resources.total},
+            '_meta': {'page': page, 'per_page': per_page, 'total_pages': resources.pages,
+                      'total_items': resources.total},
             '_links': {
                 'self': url_for(endpoint, page=page, per_page=per_page, **kwargs),
                 'next': url_for(endpoint, page=page + 1, per_page=per_page, **kwargs) if resources.has_next else None,
@@ -26,24 +28,35 @@ class PaginatedAPIMixin(object):
         }
         return data
 
+
 followers = sa.Table(
     'followers',
     db.metadata,
-    sa.Column('follower_id', sa.Integer, sa.ForeignKey('user.id'), primary_key=True),
-    sa.Column('followed_id', sa.Integer, sa.ForeignKey('user.id'), primary_key=True)
+    sa.Column('follower_id', sa.Integer, sa.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True),
+    sa.Column('followed_id', sa.Integer, sa.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True)
 )
+
 
 class User(PaginatedAPIMixin, db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     username: so.Mapped[str] = so.mapped_column(sa.String(64), index=True, unique=True)
     email: so.Mapped[str] = so.mapped_column(sa.String(120), index=True, unique=True)
     last_message_read_time: so.Mapped[Optional[datetime]]
-    token: so.Mapped[Optional[str]] = so.mapped_column(sa.String(32), index=True, unique=True)
-    token_expiration: so.Mapped[Optional[datetime]]
 
-    posts: so.WriteOnlyMapped['Post'] = so.relationship(back_populates='author')
-    notifications: so.WriteOnlyMapped['Notification'] = so.relationship(back_populates='user')
-    tasks: so.WriteOnlyMapped['Task'] = so.relationship(back_populates='user')
+    # Relaties met cascade delete
+    posts: so.WriteOnlyMapped['Post'] = so.relationship(
+        back_populates='author',
+        cascade="all, delete-orphan"
+    )
+    notifications: so.WriteOnlyMapped['Notification'] = so.relationship(
+        back_populates='user',
+        cascade="all, delete-orphan"
+    )
+    tasks: so.WriteOnlyMapped['Task'] = so.relationship(
+        back_populates='user',
+        cascade="all, delete-orphan"
+    )
+
     about_me: so.Mapped[Optional[str]] = so.mapped_column(sa.String(140))
     last_seen: so.Mapped[Optional[datetime]] = so.mapped_column(default=lambda: datetime.now(timezone.utc))
 
@@ -53,8 +66,17 @@ class User(PaginatedAPIMixin, db.Model):
     followers: so.WriteOnlyMapped['User'] = so.relationship(
         secondary=followers, primaryjoin=(followers.c.followed_id == id),
         secondaryjoin=(followers.c.follower_id == id), back_populates='following')
-    messages_sent: so.WriteOnlyMapped['Message'] = so.relationship(foreign_keys='Message.sender_id', back_populates='author')
-    messages_received: so.WriteOnlyMapped['Message'] = so.relationship(foreign_keys='Message.recipient_id', back_populates='recipient')
+
+    messages_sent: so.WriteOnlyMapped['Message'] = so.relationship(
+        foreign_keys='Message.sender_id',
+        back_populates='author',
+        cascade="all, delete-orphan"
+    )
+
+    messages_received: so.WriteOnlyMapped['Message'] = so.relationship(
+        foreign_keys='Message.recipient_id',
+        back_populates='recipient'
+    )
 
     def __repr__(self):
         return '<User {}>'.format(self.username)
@@ -106,6 +128,7 @@ class User(PaginatedAPIMixin, db.Model):
         db.session.add(n)
         return n
 
+    # API token management
     def get_token(self, expires_in=3600):
         now = datetime.now(timezone.utc)
         if self.token and self.token_expiration.replace(tzinfo=timezone.utc) > now + timedelta(seconds=60):
@@ -124,6 +147,30 @@ class User(PaginatedAPIMixin, db.Model):
         if user is None or user.token_expiration.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
             return None
         return user
+
+    def to_dict(self):
+        data = {
+            'id': self.id,
+            'username': self.username,
+            'email': self.email,
+            'about_me': self.about_me,
+            'last_seen': self.last_seen.isoformat() if self.last_seen else None,
+            'post_count': db.session.scalar(sa.select(sa.func.count()).where(Post.user_id == self.id)),
+            'follower_count': self.followers_count(),
+            'following_count': self.following_count(),
+            '_links': {
+                'self': url_for('api.get_user', id=self.id),
+                'followers': url_for('api.get_followers', id=self.id),
+                'following': url_for('api.get_following', id=self.id),
+                'avatar': self.avatar(128)
+            }
+        }
+        return data
+
+    def from_dict(self, data, new_user=False):
+        for field in ['username', 'email', 'about_me']:
+            if field in data:
+                setattr(self, field, data[field])
 
 class Post(db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
