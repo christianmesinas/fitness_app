@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
         <div class="top-background"></div>
-    <img src="static/img/girl.png" alt="Character" class="character" />
+    <img src="static/img/fittrack-logo-white.svg" alt="logo" class="start-page-logo" />
     <div class="start-page-content">
 
     <h1>{{ 'Welkom bij fitrack!'}}</h1>
-    <p>{{ 'Kies een optie om verder te gaan:' }}</p>
+        <p>{{ 'Get in shape
+Get fit with your own custom made workouts.'}}</p>
     <div class="row justify-content-center">
         <div class="">
             <a href="{{ url_for('main.login') }}" class="orange-btn">{{ 'Inloggen' }}</a>

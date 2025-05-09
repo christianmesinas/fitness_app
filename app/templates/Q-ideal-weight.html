@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+    <h1 class="page-title">FITNESS GOAL</h1>
+    <div class="orange-section-bottom"></div>
+    <section class="question-section">
+        <form action="{{ url_for('main.question_fitness_goal') }}" method="post">
+            {{ form.hidden_tag() }}
+            <label for="fitness_goal" class="question-label">{{ form.fitness_goal.label.text }}</label>
+            {{ form.fitness_goal(id="fitness_goal", class="question-select") }}
+            {% for error in form.fitness_goal.errors %}
+                <span style="color: red;">{{ error }}</span><br>
+            {% endfor %}
+            <button type="submit" class="white-btn">Next</button>
+        </form>
+    </section>
+{% endblock %}

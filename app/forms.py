@@ -1,12 +1,33 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, SubmitField
-from wtforms.validators import DataRequired, Length, ValidationError
+from wtforms import SelectField, StringField, TextAreaField, SubmitField
+from wtforms.validators import DataRequired, Length, ValidationError, NumberRange
 from app.models import User
 from app import db
 
-class PostForm(FlaskForm):
-    post = TextAreaField('Say something', validators=[DataRequired(), Length(min=1, max=140)])
-    submit = SubmitField('Submit')
+class QuestionnaireForm(FlaskForm):
+    name = StringField(
+        'Wat is je naam?',
+        validators=[DataRequired(), Length(min=2, max=64)]
+    )
+    huidige_gewicht = SelectField(
+        'Wat is je huidige gewicht?',
+        validators=[DataRequired(), NumberRange(min=25, max=300,)]
+    )
+    doel_gewicht = SelectField(
+        'Wat is je doel gewicht?',
+        validators=[DataRequired(), NumberRange(min=25, max=300, )]
+    )
+    workout_freq = SelectField(
+        'Hoeveel workouts wil je doen per week?',
+        validators=[DataRequired(), NumberRange(min=1, max=14, )]
+    )
+    submit = SubmitField('Versturen')
+
+
+
+#class PostForm(FlaskForm):
+#    post = TextAreaField('Say something', validators=[DataRequired(), Length(min=1, max=140)])
+#    submit = SubmitField('Submit')
 
 class EditProfileForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired()])

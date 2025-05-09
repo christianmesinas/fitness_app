@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+    <h1 class="page-title">CURRENT WEIGHT</h1>
+    <div class="orange-section-bottom"></div>
+    <section class="question-section">
+        <form action="{{ url_for('main.question_weight') }}" method="post">
+            {{ form.hidden_tag() }}
+            <label id="current-weight-label" for="current-weight" class="question-label">{{ form.current_weight.label.text }}</label>
+            <input type="range" min="0" max="200" value="{{ form.current_weight.data or 80 }}" 
+                   data-output="current-weight-output" id="current-weight" name="current_weight" class="question-range">
+            <p class="weight-number-under-range" id="current-weight-output">{{ form.current_weight.data or 80 }} kg</p>
+            {% for error in form.current_weight.errors %}
+                <span style="color: red;">{{ error }}</span><br>
+            {% endfor %}
+            <button type="submit" class="white-btn">Next</button>
+        </form>
+    </section>
+    <script src="{{ url_for('static', filename='js/input-range.js') }}" defer></script>
+{% endblock %}

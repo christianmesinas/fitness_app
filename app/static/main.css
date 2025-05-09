@@ -1,5 +1,4 @@
-
-        /* styles.css */
+/* styles.css */
 
 * {
   margin: 0;
@@ -31,6 +30,12 @@ input {
   padding-left: 30px;
 }
 
+.section-link * {
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+}
+
 /* buttons */
 
 .orange-btn {
@@ -38,7 +43,7 @@ input {
   background-color: #FF914B;
   border: none;
   border-radius: 10px;
-  color: white;
+  color: black;
   font-weight: bold;
   font-size: 16px;
   cursor: pointer;
@@ -48,10 +53,57 @@ input {
   max-width: 260px;
   height: 50px;
   padding: 17px 5px;
+  text-align: center;
 }
 
 .orange-btn:hover {
   background-color: #e67c3c;
+}
+
+.orange-btn-outline {
+  display: inline-block;
+  border-radius: 10px;
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+  margin-bottom: 30px;
+  text-decoration: none;
+  width: 100%;
+  max-width: 260px;
+  height: 50px;
+  padding: 17px 5px;
+  border: 1px solid #FF914B;
+  color: #FF914B;
+  background-color: white;
+  text-align: center;
+}
+
+.orange-btn-outline:hover {
+  background-color: #FF914B;
+  color: white;
+}
+
+.second-grey-cta-btn {
+  display: inline-block;
+  border-radius: 10px;
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+  text-decoration: none;
+  width: 90%;
+  max-width: 700px;
+  height: 50px;
+  padding: 17px 5px;
+  border: none;
+  color: black;
+  background-color: #F2F2F2;
+  text-align: center;
+  margin-top: 40px;
+}
+
+.second-grey-cta-btn:hover {
+  background-color: #FF914B;
+  color: white;
 }
 
 .white-btn {
@@ -135,17 +187,15 @@ input {
   position: absolute;
 }
 
-.character {
-  display: block;
-margin-left: auto;
-margin-right: auto;
-
-  padding-top: 60px;
-  max-width: 200px;
-  width: 125px;
-  height: auto;
-  margin-bottom: 2rem;
+.start-page-logo {
+  width: 60%;
   z-index: 2;
+  height: auto;
+  padding-top: 100px;
+  padding-bottom: 40px;
+  max-width: 200px;
+  display: block;
+  margin: auto;
 }
 
 .start-page-content {
@@ -153,6 +203,7 @@ margin-right: auto;
   z-index: 2;
   width: 90%;
   margin: auto;
+  margin-top: 200px;
 }
 
 .start-page-content h1 {
@@ -178,15 +229,8 @@ margin-right: auto;
 
 @media (min-width: 600px) {
 
-  .character {
-    max-width: 200px;
-    width: 60%;
-    height: auto;
-    margin-bottom: 2rem;
-  }
-
   .top-background {
-    clip-path: ellipse(56% 32% at 50% 7%);
+    clip-path: ellipse(56% 40% at 50% 7%);
   }
 
 }
@@ -369,7 +413,6 @@ margin-right: auto;
 .workout-start-btn {
   position: absolute;
   bottom: 0;
-  text-align: center;
 }
 
 .setting-dots-workout {
@@ -390,19 +433,17 @@ margin-right: auto;
 .add-new-workout-btn {
   width: 90%;
   max-width: 700px;
-  text-align: center;
-  margin-top: 40px;
   margin-bottom: 60px;
 }
 
-/* add workout template */
-
-.pencil-icon {
-  width: 25px;
-  height: 25px;
+.home-btn {
+  margin-top: 20px;
+  margin-bottom: 150px;
 }
 
-.new-workout-header {
+/* header with title for all pages */
+
+.header-section {
   width: 90%;
   margin: auto;
   max-width: 700px;
@@ -415,6 +456,13 @@ margin-right: auto;
   display: flex;
   gap: 20px;
   align-items: center;
+}
+
+/* add workout template */
+
+.pencil-icon {
+  width: 25px;
+  height: 25px;
 }
 
 .exercise-blok-section {
@@ -439,11 +487,40 @@ margin-right: auto;
   gap: 30px;
 }
 
-.exercise-block img {
-  max-width: 180px;
-  max-height: 120px;
+.exercise-block-content {
+  position: relative;
+  max-width: 700px;
+  background-color: #F2F2F2;
+  border-radius: 10px;
+  width: 90%;
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.exercise-block-link {
+  width: 100%;
+  text-decoration: none
+}
+
+.exercise-block-content h2 {
+  color: black;
+}
+
+.exercise-block-img {
+  max-width: 100px;
+  max-height: 100px;
   border-radius: 10px;
   width: 90%
+}
+
+.drag-drop-icon {
+  height: 50px;
+  width: auto;
+  position: absolute;
+  left: 0px;
 }
 
 .exercise-text {
@@ -452,14 +529,14 @@ margin-right: auto;
   gap: 20px;
 }
 
-@media (min-width: 500px) {
+@media (min-width: 420px) {
 
-  .exercise-block {
+  .exercise-block,
+  .exercise-block-content {
     flex-direction: row;
   }
 
 }
-
 
 .top-bar {
   width: 100%;
@@ -498,6 +575,7 @@ input[type="file"],
 input[type="text"],
 input[type="number"],
 input[type="url"],
+input[type="date"],
 textarea {
   width: 100%;
   padding: 12px 15px;
@@ -786,4 +864,12 @@ select {
     border: solid white;
     border-width: 0 3px 3px 0;
     transform: rotate(45deg);
+}
+
+/* progress tracker template */
+
+.progress-tracker-section {
+  width: 90%;
+  margin: auto;
+  max-width: 700px;
 }

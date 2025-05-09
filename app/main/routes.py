@@ -1,6 +1,6 @@
 from flask import session, render_template, flash, redirect, url_for, request, current_app, jsonify
 from app import db, oauth
-from app.forms import PostForm, EditProfileForm, EmptyForm, MessageForm
+from app.forms import EditProfileForm, EmptyForm, MessageForm
 from app.models import User, Post, Message, Notification
 from langdetect import detect, LangDetectException
 from datetime import datetime, timezone
@@ -53,23 +53,12 @@ def index():
         current_app.logger.error("User is None despite session, forcing logout")
         session.clear()
         return redirect(url_for('main.login'))
-    form = PostForm()
-    if form.validate_on_submit():
-        try:
-            language = detect(form.post.data)
-        except LangDetectException:
-            language = ''
-        post = Post(body=form.post.data, author=user, language=language)
-        db.session.add(post)
-        db.session.commit()
-        flash('Your post is now live!')
-        return redirect(url_for('main.index'))
     page = request.args.get('page', 1, type=int)
     posts = db.paginate(user.following_posts(), page=page,
                         per_page=current_app.config.get('POSTS_PER_PAGE', 10), error_out=False)
     next_url = url_for('main.index', page=posts.next_num) if posts.has_next else None
     prev_url = url_for('main.index', page=posts.prev_num) if posts.has_prev else None
-    return render_template('index.html', title='Home', form=form,
+    return render_template('index.html', title='Home',
                            posts=posts.items, next_url=next_url, prev_url=prev_url, is_landing_page=False)
 
 
@@ -203,111 +192,3 @@ def edit_profile():
         form.username.data = user.username
         form.about_me.data = user.about_me
     return render_template('edit_profile.html', title='Edit Profile', form=form)
-
-
-@bp.route('/follow/<username>', methods=['POST'])
-def follow(username):
-    if 'user' not in session:
-        return redirect(url_for('main.login'))
-    form = EmptyForm()
-    if form.validate_on_submit():
-        user = db.session.scalar(sa.select(User).where(User.username == username))
-        current_user = get_current_user()
-        if user is None:
-            flash(f'User {username} not found.')
-            return redirect(url_for('main.index'))
-        if user == current_user:
-            flash('You cannot follow yourself!')
-            return redirect(url_for('main.user', username=username))
-        current_user.follow(user)
-        db.session.commit()
-        flash(f'You are following {username}!')
-        return redirect(url_for('main.user', username=username))
-    return redirect(url_for('main.index'))
-
-
-@bp.route('/unfollow/<username>', methods=['POST'])
-def unfollow(username):
-    if 'user' not in session:
-        return redirect(url_for('main.login'))
-    form = EmptyForm()
-    if form.validate_on_submit():
-        user = db.session.scalar(sa.select(User).where(User.username == username))
-        current_user = get_current_user()
-        if user is None:
-            flash(f'User {username} not found.')
-            return redirect(url_for('main.index'))
-        if user == current_user:
-            flash('You cannot unfollow yourself!')
-            return redirect(url_for('main.user', username=username))
-        current_user.unfollow(user)
-        db.session.commit()
-        flash(f'You are not following {username}.')
-        return redirect(url_for('main.user', username=username))
-    return redirect(url_for('main.index'))
-
-
-@bp.route('/send_message/<recipient>', methods=['GET', 'POST'])
-def send_message(recipient):
-    if 'user' not in session:
-        return redirect(url_for('main.login'))
-    current_user = get_current_user()
-    if current_user is None:
-        session.clear()
-        return redirect(url_for('main.login'))
-    recipient_user = db.session.scalar(sa.select(User).where(User.username == recipient))
-    if recipient_user is None:
-        flash(f'User {recipient} not found.')
-        return redirect(url_for('main.index'))
-    form = MessageForm()
-    if form.validate_on_submit():
-        msg = Message(author=current_user, recipient=recipient_user, body=form.message.data)
-        db.session.add(msg)
-        current_user.add_notification('unread_message_count', current_user.unread_message_count())
-        db.session.commit()
-        flash('Your message has been sent!')
-        return redirect(url_for('main.user', username=recipient))
-    return render_template('send_message.html', title='Send Message', form=form, recipient=recipient)
-
-
-@bp.route('/messages')
-def messages():
-    if 'user' not in session:
-        return redirect(url_for('main.login'))
-    current_user = get_current_user()
-    if current_user is None:
-        session.clear()
-        return redirect(url_for('main.login'))
-    current_user.last_message_read_time = datetime.now(timezone.utc)
-    current_user.add_notification('unread_message_count', 0)
-    db.session.commit()
-    page = request.args.get('page', 1, type=int)
-    messages = db.paginate(
-        current_user.messages_received.select().order_by(Message.timestamp.desc()),
-        page=page,
-        per_page=current_app.config.get('POSTS_PER_PAGE', 10),
-        error_out=False
-    )
-    next_url = url_for('main.messages', page=messages.next_num) if messages.has_next else None
-    prev_url = url_for('main.messages', page=messages.prev_num) if messages.has_prev else None
-    return render_template('messages.html', messages=messages.items, next_url=next_url, prev_url=prev_url)
-
-
-@bp.route('/notifications')
-def notifications():
-    if 'user' not in session:
-        return jsonify([])
-    current_user = get_current_user()
-    if current_user is None:
-        session.clear()
-        return jsonify([])
-    since = request.args.get('since', 0.0, type=float)
-    notifications = db.session.scalars(
-        current_user.notifications.select().where(
-            Notification.timestamp > since).order_by(Notification.timestamp.asc())
-    )
-    return jsonify([{
-        'name': n.name,
-        'data': n.get_data(),
-        'timestamp': n.timestamp
-    } for n in notifications])

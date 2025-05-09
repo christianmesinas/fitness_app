@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+    <h1 class="page-title">ABOUT YOU</h1>
+    <div class="orange-section-bottom"></div>
+    <section class="question-section">
+        <form action="{{ url_for('main.question_name') }}" method="post">
+            {{ form.hidden_tag() }}
+            <label for="name" class="question-label">{{ form.name.label.text }}</label>
+            {{ form.name(id="name", class="question-input", placeholder="Enter your name") }}
+            {% for error in form.name.errors %}
+                <span style="color: red;">{{ error }}</span><br>
+            {% endfor %}
+            <button type="submit" class="white-btn">Next</button>
+        </form>
+    </section>
+{% endblock %}

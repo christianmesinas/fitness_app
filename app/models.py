@@ -59,6 +59,10 @@ class User(PaginatedAPIMixin, db.Model):
     sub = db.Column(db.String(128), index=True, unique=True)
     about_me: so.Mapped[Optional[str]] = so.mapped_column(sa.String(140))
     last_seen: so.Mapped[Optional[datetime]] = so.mapped_column(default=lambda: datetime.now(timezone.utc))
+    fitness_goal = db.Column(db.String(64))
+    experience_level = db.Column(db.String(64))
+    current_weight = db.Column(db.Float, nullable=True)
+    weekly_workouts = db.Column(db.Integer, nullable=True)
 
     following: so.WriteOnlyMapped['User'] = so.relationship(
         secondary=followers, primaryjoin=(followers.c.follower_id == id),

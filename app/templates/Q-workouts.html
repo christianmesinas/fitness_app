@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Question: workouts</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="js/input-range.js" defer></script>
+  </head>
+<body>
+        <h1 class="page-title">WORKOUTS</h1>
+        <div class="orange-section-bottom "></div>
+        <section class="question-section">
+            <label id="ideal-weight-label" for="workouts-question" class="question-label">How many workouts do you want to do in a week? </label>
+            <input type="range" min="0" max="21" value="4" data-output="workouts-output" id="workouts-question" name="question-input" class="question-range"/>
+            <p class="weight-number-under-range" id="workouts-output"></p>
+            <button class="white-btn">Next</button>
+        </section>
+
+</body>
+</html>
