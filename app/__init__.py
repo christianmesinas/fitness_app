@@ -3,7 +3,6 @@ from flask import Flask
 from config import Config
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from flask_mail import Mail
 from flask_moment import Moment
 from dotenv import load_dotenv
 from authlib.integrations.flask_client import OAuth
@@ -11,7 +10,6 @@ from authlib.integrations.flask_client import OAuth
 # Initialiseer extensies zonder app
 db = SQLAlchemy()
 migrate = Migrate()
-mail = Mail()
 moment = Moment()
 oauth = OAuth()
 
@@ -36,7 +34,6 @@ def create_app(config_class=Config):
     # Initialiseer extensies met app
     db.init_app(app)
     migrate.init_app(app, db)
-    mail.init_app(app)
     moment.init_app(app)
     oauth.init_app(app)
 
@@ -52,21 +49,10 @@ def create_app(config_class=Config):
         },
     )
 
-    # Importeer Blueprints
-    from app.api import bp as api_bp
-    from app.errors import bp as errors_bp
     from app.main import bp as main_bp
-
-    # Importeer routes en handlers expliciet om ze te laden
-    from app.api import errors
-    from app.api import routes
-    from app.errors import handlers
-    from app.main import routes
-
-    # Registreer Blueprints
-    app.register_blueprint(api_bp, url_prefix='/api')
-    app.register_blueprint(errors_bp)
     app.register_blueprint(main_bp)
+
+    return app
 
 
     return app

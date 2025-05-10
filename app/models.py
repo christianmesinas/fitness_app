@@ -1,232 +1,232 @@
-import secrets
-from datetime import datetime, timezone, timedelta
-from hashlib import md5
-from typing import Optional
+import json
+from enum import Enum
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from flask import url_for, current_app
-import json
-import time
-import redis
-import rq
+from datetime import datetime, timezone
+from typing import Optional
 from app import db
 
+class ExperienceLevel(str, Enum):
+    BEGINNER = "beginner"
+    INTERMEDIATE = "intermediate"
+    EXPERT = "expert"
 
-class PaginatedAPIMixin(object):
-    @staticmethod
-    def to_collection_dict(query, page, per_page, endpoint, **kwargs):
-        resources = db.paginate(query, page=page, per_page=per_page, error_out=False)
-        data = {
-            'items': [item.to_dict() for item in resources.items],
-            '_meta': {'page': page, 'per_page': per_page, 'total_pages': resources.pages,
-                      'total_items': resources.total},
-            '_links': {
-                'self': url_for(endpoint, page=page, per_page=per_page, **kwargs),
-                'next': url_for(endpoint, page=page + 1, per_page=per_page, **kwargs) if resources.has_next else None,
-                'prev': url_for(endpoint, page=page - 1, per_page=per_page, **kwargs) if resources.has_prev else None
-            }
-        }
-        return data
+class Force(str, Enum):
+    STATIC = "static"
+    PULL = "pull"
+    PUSH = "push"
 
+class Mechanic(str, Enum):
+    ISOLATION = "isolation"
+    COMPOUND = "compound"
 
-followers = sa.Table(
-    'followers',
-    db.metadata,
-    sa.Column('follower_id', sa.Integer, sa.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True),
-    sa.Column('followed_id', sa.Integer, sa.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True)
-)
+class Equipment(str, Enum):
+    MEDICINE_BALL = "medicine ball"
+    DUMBBELL = "dumbbell"
+    BODY_ONLY = "body only"
+    BANDS = "bands"
+    KETTLEBELLS = "kettlebells"
+    FOAM_ROLL = "foam roll"
+    CABLE = "cable"
+    MACHINE = "machine"
+    BARBELL = "barbell"
+    EXERCISE_BALL = "exercise ball"
+    E_Z_CURL_BAR = "e-z curl bar"
+    OTHER = "other"
 
+class Muscle(str, Enum):
+    ABDOMINALS = "abdominals"
+    ABDUCTORS = "abductors"
+    ADDUCTORS = "adductors"
+    BICEPS = "biceps"
+    CALVES = "calves"
+    CHEST = "chest"
+    FOREARMS = "forearms"
+    GLUTES = "glutes"
+    HAMSTRINGS = "hamstrings"
+    LATS = "lats"
+    LOWER_BACK = "lower back"
+    MIDDLE_BACK = "middle back"
+    NECK = "neck"
+    QUADRICEPS = "quadriceps"
+    SHOULDERS = "shoulders"
+    TRAPS = "traps"
+    TRICEPS = "triceps"
 
-class User(PaginatedAPIMixin, db.Model):
+class Category(str, Enum):
+    POWERLIFTING = "powerlifting"
+    STRENGTH = "strength"
+    STRETCHING = "stretching"
+    CARDIO = "cardio"
+    OLYMPIC_WEIGHTLIFTING = "olympic weightlifting"
+    STRONGMAN = "strongman"
+    PLYOMETRICS = "plyometrics"
+
+class User(db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     username: so.Mapped[str] = so.mapped_column(sa.String(64), index=True, unique=True)
     email: so.Mapped[str] = so.mapped_column(sa.String(120), index=True, unique=True)
-    last_message_read_time: so.Mapped[Optional[datetime]]
-
-    # Relaties met cascade delete
-    posts: so.WriteOnlyMapped['Post'] = so.relationship(
-        back_populates='author',
-        cascade="all, delete-orphan"
-    )
-    notifications: so.WriteOnlyMapped['Notification'] = so.relationship(
-        back_populates='user',
-        cascade="all, delete-orphan"
-    )
-    tasks: so.WriteOnlyMapped['Task'] = so.relationship(
-        back_populates='user',
-        cascade="all, delete-orphan"
-    )
-    sub = db.Column(db.String(128), index=True, unique=True)
-    about_me: so.Mapped[Optional[str]] = so.mapped_column(sa.String(140))
+    sub: so.Mapped[str] = so.mapped_column(sa.String(128), unique=True)
     last_seen: so.Mapped[Optional[datetime]] = so.mapped_column(default=lambda: datetime.now(timezone.utc))
-    fitness_goal = db.Column(db.String(64))
-    experience_level = db.Column(db.String(64))
-    current_weight = db.Column(db.Float, nullable=True)
-    weekly_workouts = db.Column(db.Integer, nullable=True)
+    fitness_goal: so.Mapped[Optional[str]] = so.mapped_column(sa.String(64))
+    experience_level: so.Mapped[Optional[str]] = so.mapped_column(sa.Enum(ExperienceLevel))
+    current_weight: so.Mapped[Optional[float]] = so.mapped_column()
+    weekly_workouts: so.Mapped[Optional[int]] = so.mapped_column()
 
-    following: so.WriteOnlyMapped['User'] = so.relationship(
-        secondary=followers, primaryjoin=(followers.c.follower_id == id),
-        secondaryjoin=(followers.c.followed_id == id), back_populates='followers')
-    followers: so.WriteOnlyMapped['User'] = so.relationship(
-        secondary=followers, primaryjoin=(followers.c.followed_id == id),
-        secondaryjoin=(followers.c.follower_id == id), back_populates='following')
-
-    messages_sent: so.WriteOnlyMapped['Message'] = so.relationship(
-        foreign_keys='Message.sender_id',
-        back_populates='author',
-        cascade="all, delete-orphan"
-    )
-
-    messages_received: so.WriteOnlyMapped['Message'] = so.relationship(
-        foreign_keys='Message.recipient_id',
-        back_populates='recipient'
-    )
+    workout_plans: so.WriteOnlyMapped['WorkoutPlan'] = so.relationship(back_populates='user', cascade="all, delete-orphan")
+    exercise_logs: so.WriteOnlyMapped['ExerciseLog'] = so.relationship(back_populates='user', cascade="all, delete-orphan")
 
     def __repr__(self):
-        return '<User {}>'.format(self.username)
-
-    def avatar(self, size):
-        return url_for('static', filename='default_avatar.png')
-
-    def follow(self, user):
-        if not self.is_following(user):
-            self.following.add(user)
-
-    def unfollow(self, user):
-        if self.is_following(user):
-            self.following.remove(user)
-
-    def is_following(self, user):
-        query = self.following.select().where(User.id == user.id)
-        return db.session.scalar(query) is not None
-
-    def followers_count(self):
-        query = sa.select(sa.func.count()).select_from(self.followers.select().subquery())
-        return db.session.scalar(query)
-
-    def following_count(self):
-        query = sa.select(sa.func.count()).select_from(self.following.select().subquery())
-        return db.session.scalar(query)
-
-    def following_posts(self):
-        Author = so.aliased(User)
-        Follower = so.aliased(User)
-        return (
-            sa.select(Post)
-            .join(Post.author.of_type(Author))
-            .join(Author.followers.of_type(Follower), isouter=True)
-            .where(sa.or_(Follower.id == self.id, Author.id == self.id))
-            .group_by(Post)
-            .order_by(Post.timestamp.desc())
-        )
-
-    def unread_message_count(self):
-        last_read_time = self.last_message_read_time or datetime(1900, 1, 1)
-        query = sa.select(Message).where(Message.recipient == self, Message.timestamp > last_read_time)
-        return db.session.scalar(sa.select(sa.func.count()).select_from(query.subquery()))
-
-    def add_notification(self, name, data):
-        db.session.execute(self.notifications.delete().where(Notification.name == name))
-        n = Notification(name=name, payload_json=json.dumps(data), user=self)
-        db.session.add(n)
-        return n
-
-    # API token management
-    def get_token(self, expires_in=3600):
-        now = datetime.now(timezone.utc)
-        if self.token and self.token_expiration.replace(tzinfo=timezone.utc) > now + timedelta(seconds=60):
-            return self.token
-        self.token = secrets.token_hex(16)
-        self.token_expiration = now + timedelta(seconds=expires_in)
-        db.session.add(self)
-        return self.token
-
-    def revoke_token(self):
-        self.token_expiration = datetime.now(timezone.utc) - timedelta(seconds=1)
-
-    @staticmethod
-    def check_token(token):
-        user = db.session.scalar(sa.select(User).where(User.token == token))
-        if user is None or user.token_expiration.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
-            return None
-        return user
+        return f'<User {self.username}>'
 
     def to_dict(self):
-        data = {
+        return {
             'id': self.id,
             'username': self.username,
             'email': self.email,
-            'about_me': self.about_me,
-            'last_seen': self.last_seen.isoformat() if self.last_seen else None,
-            'post_count': db.session.scalar(sa.select(sa.func.count()).where(Post.user_id == self.id)),
-            'follower_count': self.followers_count(),
-            'following_count': self.following_count(),
-            '_links': {
-                'self': url_for('api.get_user', id=self.id),
-                'followers': url_for('api.get_followers', id=self.id),
-                'following': url_for('api.get_following', id=self.id),
-                'avatar': self.avatar(128)
-            }
+            'fitness_goal': self.fitness_goal,
+            'experience_level': self.experience_level,
+            'current_weight': self.current_weight,
+            'weekly_workouts': self.weekly_workouts,
+            'last_seen': self.last_seen.isoformat() if self.last_seen else None
         }
-        return data
 
-    def from_dict(self, data, new_user=False):
-        for field in ['username', 'email', 'about_me']:
-            if field in data:
-                setattr(self, field, data[field])
+exercise_muscle_association = sa.Table(
+    'exercise_muscle_association',
+    db.metadata,
+    sa.Column('exercise_id', sa.String(50), sa.ForeignKey('exercise.id', ondelete='CASCADE'), primary_key=True),
+    sa.Column('muscle_id', sa.Integer, sa.ForeignKey('exercise_muscle.id', ondelete='CASCADE'), primary_key=True),
+    sa.Column('is_primary', sa.Boolean, nullable=False)
+)
 
-class Post(db.Model):
+class ExerciseMuscle(db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    body: so.Mapped[str] = so.mapped_column(sa.String(140))
-    timestamp: so.Mapped[datetime] = so.mapped_column(index=True, default=lambda: datetime.now(timezone.utc))
-    user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id), index=True)
-    language: so.Mapped[Optional[str]] = so.mapped_column(sa.String(5))
-    author: so.Mapped[User] = so.relationship(back_populates='posts')
+    muscle: so.Mapped[str] = so.mapped_column(sa.Enum(Muscle), nullable=False)
+
+    exercises_primary: so.WriteOnlyMapped['Exercise'] = so.relationship(
+        secondary=lambda: exercise_muscle_association,
+        primaryjoin=lambda: (exercise_muscle_association.c.muscle_id == ExerciseMuscle.id) & (exercise_muscle_association.c.is_primary == True),
+        back_populates='primary_muscles'
+    )
+    exercises_secondary: so.WriteOnlyMapped['Exercise'] = so.relationship(
+        secondary=lambda: exercise_muscle_association,
+        primaryjoin=lambda: (exercise_muscle_association.c.muscle_id == ExerciseMuscle.id) & (exercise_muscle_association.c.is_primary == False),
+        back_populates='secondary_muscles'
+    )
 
     def __repr__(self):
-        return '<Post {}>'.format(self.body)
+        return f'<ExerciseMuscle {self.muscle}>'
 
-class Message(db.Model):
-    id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    sender_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id), index=True)
-    recipient_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id), index=True)
-    body: so.Mapped[str] = so.mapped_column(sa.String(140))
-    timestamp: so.Mapped[datetime] = so.mapped_column(index=True, default=lambda: datetime.now(timezone.utc))
-    author: so.Mapped[User] = so.relationship(foreign_keys='Message.sender_id', back_populates='messages_sent')
-    recipient: so.Mapped[User] = so.relationship(foreign_keys='Message.recipient_id', back_populates='messages_received')
+class Exercise(db.Model):
+    id: so.Mapped[str] = so.mapped_column(sa.String(50), primary_key=True)
+    name: so.Mapped[str] = so.mapped_column(sa.String(100), index=True)
+    force: so.Mapped[Optional[str]] = so.mapped_column(sa.Enum(Force))
+    level: so.Mapped[str] = so.mapped_column(sa.Enum(ExperienceLevel), index=True)
+    mechanic: so.Mapped[Optional[str]] = so.mapped_column(sa.Enum(Mechanic))
+    equipment: so.Mapped[Optional[str]] = so.mapped_column(sa.Enum(Equipment), index=True)
+    category: so.Mapped[str] = so.mapped_column(sa.Enum(Category), index=True)
+    instructions: so.Mapped[str] = so.mapped_column(sa.Text)
+    images: so.Mapped[str] = so.mapped_column(sa.Text)
+
+    primary_muscles: so.WriteOnlyMapped['ExerciseMuscle'] = so.relationship(
+        secondary=lambda: exercise_muscle_association,
+        primaryjoin=lambda: (exercise_muscle_association.c.exercise_id == Exercise.id) & (exercise_muscle_association.c.is_primary == True),
+        back_populates='exercises_primary'
+    )
+    secondary_muscles: so.WriteOnlyMapped['ExerciseMuscle'] = so.relationship(
+        primaryjoin=lambda: (exercise_muscle_association.c.exercise_id == Exercise.id) & (exercise_muscle_association.c.is_primary == False),
+        secondary=lambda: exercise_muscle_association,
+        back_populates='exercises_secondary'
+    )
 
     def __repr__(self):
-        return '<Message {}>'.format(self.body)
+        return f'<Exercise {self.name}>'
 
-class Notification(db.Model):
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'force': self.force,
+            'level': self.level,
+            'mechanic': self.mechanic,
+            'equipment': self.equipment,
+            'primaryMuscles': [muscle.muscle for muscle in self.primary_muscles],
+            'secondaryMuscles': [muscle.muscle for muscle in self.secondary_muscles],
+            'instructions': json.loads(self.instructions) if self.instructions else [],
+            'category': self.category,
+            'images': json.loads(self.images) if self.images else []
+        }
+
+class WorkoutPlan(db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    name: so.Mapped[str] = so.mapped_column(sa.String(128), index=True)
-    user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id), index=True)
-    timestamp: so.Mapped[float] = so.mapped_column(index=True, default=time.time)
-    payload_json: so.Mapped[str] = so.mapped_column(sa.Text)
-    user: so.Mapped[User] = so.relationship(back_populates='notifications')
+    user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('user.id'), index=True)
+    name: so.Mapped[str] = so.mapped_column(sa.String(100))
+    created_at: so.Mapped[datetime] = so.mapped_column(default=lambda: datetime.now(timezone.utc))
+    start_date: so.Mapped[Optional[datetime]] = so.mapped_column()
+    end_date: so.Mapped[Optional[datetime]] = so.mapped_column()
+    user: so.Mapped['User'] = so.relationship(back_populates='workout_plans')
+    exercises: so.WriteOnlyMapped['WorkoutPlanExercise'] = so.relationship(back_populates='workout_plan')
 
-    def get_data(self):
-        return json.loads(str(self.payload_json))
+    def __repr__(self):
+        return f'<WorkoutPlan {self.name}>'
 
-class Task(db.Model):
-    id: so.Mapped[str] = so.mapped_column(sa.String(36), primary_key=True)
-    name: so.Mapped[str] = so.mapped_column(sa.String(128), index=True)
-    description: so.Mapped[Optional[str]] = so.mapped_column(sa.String(128))
-    user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id))
-    complete: so.Mapped[bool] = so.mapped_column(default=False)
-    user: so.Mapped[User] = so.relationship(back_populates='tasks')
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'created_at': self.created_at.isoformat(),
+            'start_date': self.start_date.isoformat() if self.start_date else None,
+            'end_date': self.end_date.isoformat() if self.end_date else None,
+            'user_id': self.user_id
+        }
 
-    def get_rq_job(self):
-        try:
-            # Gebruik current_app.config voor Redis-verbinding
-            redis_url = current_app.config['REDIS_URL']
-            redis_conn = redis.Redis.from_url(redis_url)
-            rq_job = rq.job.Job.fetch(self.id, connection=redis_conn)
-        except (redis.exceptions.RedisError, rq.exceptions.NoSuchJobError):
-            return None
-        return rq_job
+class WorkoutPlanExercise(db.Model):
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    workout_plan_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('workout_plan.id'), index=True)
+    exercise_id: so.Mapped[str] = so.mapped_column(sa.ForeignKey('exercise.id'), index=True)
+    day_of_week: so.Mapped[Optional[str]] = so.mapped_column(sa.String(20))
+    sets: so.Mapped[Optional[int]] = so.mapped_column()
+    reps: so.Mapped[Optional[int]] = so.mapped_column()
+    duration: so.Mapped[Optional[int]] = so.mapped_column()
+    order: so.Mapped[int] = so.mapped_column(default=0)
 
-    def get_progress(self):
-        job = self.get_rq_job()
-        return job.meta.get('progress', 0) if job is not None else 100
+    workout_plan: so.Mapped['WorkoutPlan'] = so.relationship(back_populates='exercises')
+    exercise: so.Mapped['Exercise'] = so.relationship()
+
+    def __repr__(self):
+        return f'<WorkoutPlanExercise {self.exercise_id} in {self.workout_plan_id}>'
+
+class ExerciseLog(db.Model):
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('user.id'), index=True)
+    exercise_id: so.Mapped[str] = so.mapped_column(sa.ForeignKey('exercise.id'), index=True)
+    workout_plan_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey('workout_plan.id'), index=True)
+    completed_at: so.Mapped[datetime] = so.mapped_column(default=lambda: datetime.now(timezone.utc))
+    completed: so.Mapped[bool] = so.mapped_column(default=False)
+    sets: so.Mapped[Optional[int]] = so.mapped_column()
+    reps: so.Mapped[Optional[int]] = so.mapped_column()
+    weight: so.Mapped[Optional[float]] = so.mapped_column()
+    duration: so.Mapped[Optional[int]] = so.mapped_column()
+    notes: so.Mapped[Optional[str]] = so.mapped_column(sa.Text)
+
+    user: so.Mapped['User'] = so.relationship(back_populates='exercise_logs')
+    exercise: so.Mapped['Exercise'] = so.relationship()
+    workout_plan: so.Mapped[Optional['WorkoutPlan']] = so.relationship()
+
+    def __repr__(self):
+        return f'<ExerciseLog {self.exercise_id} by {self.user_id}>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'exercise_id': self.exercise_id,
+            'workout_plan_id': self.workout_plan_id,
+            'completed_at': self.completed_at.isoformat(),
+            'completed': self.completed,
+            'sets': self.sets,
+            'reps': self.reps,
+            'weight': self.weight,
+            'duration': self.duration,
+            'notes': self.notes
+        }
