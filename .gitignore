@@ -52,3 +52,6 @@ pytest_cache/
 *.bak
 *.tmp
 *.pid
+
+flask_session/*
+flask_session

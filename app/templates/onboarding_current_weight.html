@@ -10,7 +10,7 @@
             {% endfor %}
         {% endif %}
     {% endwith %}
-    <form method="POST" action="{{ url_for('main.onboarding_current_weight') }}">
+<form method="POST" action="{{ url_for('main.onboarding_current_weight') }}">
         {{ form.hidden_tag() }}
         <div class="mb-3">
             {{ form.current_weight.label(class="form-label") }}

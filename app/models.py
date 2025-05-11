@@ -64,22 +64,23 @@ class Category(str, Enum):
 
 class User(db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    username: so.Mapped[str] = so.mapped_column(sa.String(64), index=True, unique=True)
-    name: so.Mapped[str] = so.mapped_column(sa.String(64), index=True, unique=True)
-    email: so.Mapped[str] = so.mapped_column(sa.String(120), index=True, unique=True)
-    sub: so.Mapped[str] = so.mapped_column(sa.String(128), unique=True)
+    auth0_id: so.Mapped[str] = so.mapped_column(sa.String(64), unique=True, nullable=False)
+    username: so.Mapped[str] = so.mapped_column(sa.String(64), index=True, unique=True, nullable=False)
+    name: so.Mapped[Optional[str]] = so.mapped_column(sa.String(64), index=True, unique=True, nullable=True)  # Nullable
+    email: so.Mapped[str] = so.mapped_column(sa.String(120), index=True, unique=True, nullable=False)
+    sub: so.Mapped[Optional[str]] = so.mapped_column(sa.String(128), unique=True, nullable=True)  # Nullable
     last_seen: so.Mapped[Optional[datetime]] = so.mapped_column(default=lambda: datetime.now(timezone.utc))
     fitness_goal: so.Mapped[Optional[str]] = so.mapped_column(sa.String(64))
     current_weight: so.Mapped[Optional[float]] = so.mapped_column()
     weekly_workouts: so.Mapped[Optional[int]] = so.mapped_column()
-    registration_step = db.Column(db.String(20), default='name')
+    registration_step: so.Mapped[Optional[str]] = so.mapped_column(sa.String(20), default='name')
 
     workout_plans: so.WriteOnlyMapped['WorkoutPlan'] = so.relationship(back_populates='user', cascade="all, delete-orphan")
     exercise_logs: so.WriteOnlyMapped['ExerciseLog'] = so.relationship(back_populates='user', cascade="all, delete-orphan")
 
     @property
     def is_active(self):
-        return True  # Alle gebruikers zijn standaard actief
+        return True
 
     @property
     def is_authenticated(self):
@@ -101,11 +102,12 @@ class User(db.Model):
             'username': self.username,
             'email': self.email,
             'fitness_goal': self.fitness_goal,
-            'experience_level': self.experience_level,
             'current_weight': self.current_weight,
             'weekly_workouts': self.weekly_workouts,
             'last_seen': self.last_seen.isoformat() if self.last_seen else None
         }
+
+
 
 exercise_muscle_association = sa.Table(
     'exercise_muscle_association',

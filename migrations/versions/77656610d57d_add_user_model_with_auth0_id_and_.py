@@ -1,8 +1,8 @@
-"""Add username to user table
+"""Add User model with auth0_id and nullable name
 
-Revision ID: 0e8c3575e7f8
+Revision ID: 77656610d57d
 Revises: 
-Create Date: 2025-05-10 19:28:48.564174
+Create Date: 2025-05-11 15:44:34.292691
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '0e8c3575e7f8'
+revision = '77656610d57d'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -43,16 +43,18 @@ def upgrade():
     )
     op.create_table('user',
     sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('auth0_id', sa.String(length=64), nullable=False),
     sa.Column('username', sa.String(length=64), nullable=False),
     sa.Column('name', sa.String(length=64), nullable=False),
     sa.Column('email', sa.String(length=120), nullable=False),
     sa.Column('sub', sa.String(length=128), nullable=False),
     sa.Column('last_seen', sa.DateTime(), nullable=True),
     sa.Column('fitness_goal', sa.String(length=64), nullable=True),
-    sa.Column('experience_level', sa.Enum('BEGINNER', 'INTERMEDIATE', 'EXPERT', name='experiencelevel'), nullable=True),
     sa.Column('current_weight', sa.Float(), nullable=True),
     sa.Column('weekly_workouts', sa.Integer(), nullable=True),
+    sa.Column('registration_step', sa.String(length=20), nullable=True),
     sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('auth0_id'),
     sa.UniqueConstraint('sub')
     )
     with op.batch_alter_table('user', schema=None) as batch_op:

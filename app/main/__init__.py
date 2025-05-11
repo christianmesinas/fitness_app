@@ -1,6 +1,11 @@
-# app/main/__init__.py
 from flask import Blueprint
+import logging
 
+logger = logging.getLogger(__name__)
+
+logger.debug("Initialiseren van main blueprint")
 bp = Blueprint('main', __name__)
+logger.debug("Main blueprint gedefinieerd")
 
-from .routes import main as bp
+from . import routes
+logger.debug("Routes geïmporteerd voor main blueprint")
