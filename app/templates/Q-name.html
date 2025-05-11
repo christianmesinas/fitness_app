@@ -1,16 +1,24 @@
-{% extends "base.html" %}
 {% block content %}
-    <h1 class="page-title">ABOUT YOU</h1>
-    <div class="orange-section-bottom"></div>
-    <section class="question-section">
-        <form action="{{ url_for('main.question_name') }}" method="post">
-            {{ form.hidden_tag() }}
-            <label for="name" class="question-label">{{ form.name.label.text }}</label>
-            {{ form.name(id="name", class="question-input", placeholder="Enter your name") }}
+<div class="container mt-5">
+        <h2>Welcome to FitTrack!</h2>
+        <p>Please enter your full name to get started.</p>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'danger' else 'success' }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    <form method="POST" action="{{ url_for('main.onboarding_name') }}">
+        {{ form.hidden_tag() }}
+        <div class="mb-3">
+            {{ form.name.label(class="form-label") }}
+            {{ form.name(class="form-control", required=True) }}
             {% for error in form.name.errors %}
-                <span style="color: red;">{{ error }}</span><br>
+                <span style="color: red;">{{ error }}</span>
             {% endfor %}
-            <button type="submit" class="white-btn">Next</button>
-        </form>
-    </section>
+        </div>
+        {{ form.submit(class="btn btn-primary") }}
+    </form>
+    </div>
 {% endblock %}

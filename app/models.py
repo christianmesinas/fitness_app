@@ -65,16 +65,32 @@ class Category(str, Enum):
 class User(db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     username: so.Mapped[str] = so.mapped_column(sa.String(64), index=True, unique=True)
+    name: so.Mapped[str] = so.mapped_column(sa.String(64), index=True, unique=True)
     email: so.Mapped[str] = so.mapped_column(sa.String(120), index=True, unique=True)
     sub: so.Mapped[str] = so.mapped_column(sa.String(128), unique=True)
     last_seen: so.Mapped[Optional[datetime]] = so.mapped_column(default=lambda: datetime.now(timezone.utc))
     fitness_goal: so.Mapped[Optional[str]] = so.mapped_column(sa.String(64))
-    experience_level: so.Mapped[Optional[str]] = so.mapped_column(sa.Enum(ExperienceLevel))
     current_weight: so.Mapped[Optional[float]] = so.mapped_column()
     weekly_workouts: so.Mapped[Optional[int]] = so.mapped_column()
+    registration_step = db.Column(db.String(20), default='name')
 
     workout_plans: so.WriteOnlyMapped['WorkoutPlan'] = so.relationship(back_populates='user', cascade="all, delete-orphan")
     exercise_logs: so.WriteOnlyMapped['ExerciseLog'] = so.relationship(back_populates='user', cascade="all, delete-orphan")
+
+    @property
+    def is_active(self):
+        return True  # Alle gebruikers zijn standaard actief
+
+    @property
+    def is_authenticated(self):
+        return True
+
+    @property
+    def is_anonymous(self):
+        return False
+
+    def get_id(self):
+        return str(self.id)
 
     def __repr__(self):
         return f'<User {self.username}>'
@@ -106,12 +122,14 @@ class ExerciseMuscle(db.Model):
     exercises_primary: so.WriteOnlyMapped['Exercise'] = so.relationship(
         secondary=lambda: exercise_muscle_association,
         primaryjoin=lambda: (exercise_muscle_association.c.muscle_id == ExerciseMuscle.id) & (exercise_muscle_association.c.is_primary == True),
-        back_populates='primary_muscles'
+        back_populates='primary_muscles',
+        overlaps="exercises_secondary,secondary_muscles"
     )
     exercises_secondary: so.WriteOnlyMapped['Exercise'] = so.relationship(
         secondary=lambda: exercise_muscle_association,
         primaryjoin=lambda: (exercise_muscle_association.c.muscle_id == ExerciseMuscle.id) & (exercise_muscle_association.c.is_primary == False),
-        back_populates='secondary_muscles'
+        back_populates='secondary_muscles',
+        overlaps="exercises_primary,primary_muscles"
     )
 
     def __repr__(self):
@@ -131,12 +149,14 @@ class Exercise(db.Model):
     primary_muscles: so.WriteOnlyMapped['ExerciseMuscle'] = so.relationship(
         secondary=lambda: exercise_muscle_association,
         primaryjoin=lambda: (exercise_muscle_association.c.exercise_id == Exercise.id) & (exercise_muscle_association.c.is_primary == True),
-        back_populates='exercises_primary'
+        back_populates='exercises_primary',
+        overlaps = "exercises_secondary,secondary_muscles"
     )
     secondary_muscles: so.WriteOnlyMapped['ExerciseMuscle'] = so.relationship(
         primaryjoin=lambda: (exercise_muscle_association.c.exercise_id == Exercise.id) & (exercise_muscle_association.c.is_primary == False),
         secondary=lambda: exercise_muscle_association,
-        back_populates='exercises_secondary'
+        back_populates='exercises_secondary',
+        overlaps="exercises_primary,primary_muscles"
     )
 
     def __repr__(self):

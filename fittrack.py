@@ -1,7 +1,10 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from app import db, create_app
+from dotenv import load_dotenv
 from app.models import User, Exercise, ExerciseMuscle, WorkoutPlan, WorkoutPlanExercise, ExerciseLog
+
+load_dotenv()
 
 app = create_app()
 

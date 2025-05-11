@@ -3,4 +3,4 @@ from flask import Blueprint
 
 bp = Blueprint('main', __name__)
 
-from app.main import routes  # Importeer routes om ze te laden
+from .routes import main as bp

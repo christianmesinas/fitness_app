@@ -1,19 +1,27 @@
 {% extends "base.html" %}
 {% block content %}
-    <h1 class="page-title">CURRENT WEIGHT</h1>
-    <div class="orange-section-bottom"></div>
-    <section class="question-section">
-        <form action="{{ url_for('main.question_weight') }}" method="post">
-            {{ form.hidden_tag() }}
-            <label id="current-weight-label" for="current-weight" class="question-label">{{ form.current_weight.label.text }}</label>
-            <input type="range" min="0" max="200" value="{{ form.current_weight.data or 80 }}" 
-                   data-output="current-weight-output" id="current-weight" name="current_weight" class="question-range">
-            <p class="weight-number-under-range" id="current-weight-output">{{ form.current_weight.data or 80 }} kg</p>
-            {% for error in form.current_weight.errors %}
-                <span style="color: red;">{{ error }}</span><br>
+<div class="container mt-5">
+    <h2>Your Current Weight</h2>
+    <p>Please enter your current weight in kilograms.</p>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'danger' else 'success' }}">{{ message }}</div>
             {% endfor %}
-            <button type="submit" class="white-btn">Next</button>
-        </form>
-    </section>
-    <script src="{{ url_for('static', filename='js/input-range.js') }}" defer></script>
+        {% endif %}
+    {% endwith %}
+    <form method="POST" action="{{ url_for('main.onboarding_current_weight') }}">
+        {{ form.hidden_tag() }}
+        <div class="mb-3">
+            {{ form.current_weight.label(class="form-label") }}
+            {{ form.current_weight(class="form-control", step="0.1", required=True) }}
+            {% for error in form.current_weight.errors %}
+                <span style="color: red;">{{ error }}</span>
+            {% endfor %}
+        </div>
+        <a href="{{ url_for('main.onboarding_name') }}" class="btn btn-secondary">Back</a>
+        {{ form.submit(class="btn btn-primary") }}
+    </form>
+</div>
+<script src="{{ url_for('static', filename='js/input-range.js') }}" defer></script>
 {% endblock %}

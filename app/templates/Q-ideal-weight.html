@@ -1,16 +1,26 @@
 {% extends "base.html" %}
 {% block content %}
-    <h1 class="page-title">FITNESS GOAL</h1>
-    <div class="orange-section-bottom"></div>
-    <section class="question-section">
-        <form action="{{ url_for('main.question_fitness_goal') }}" method="post">
-            {{ form.hidden_tag() }}
-            <label for="fitness_goal" class="question-label">{{ form.fitness_goal.label.text }}</label>
-            {{ form.fitness_goal(id="fitness_goal", class="question-select") }}
-            {% for error in form.fitness_goal.errors %}
-                <span style="color: red;">{{ error }}</span><br>
+<div class="container mt-5">
+    <h2>Wat is je ideale gewicht?</h2>
+    <p>Vul je ideale gewicht in kilogrammen in.</p>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'danger' else 'success' }}">{{ message }}</div>
             {% endfor %}
-            <button type="submit" class="white-btn">Next</button>
-        </form>
-    </section>
+        {% endif %}
+    {% endwith %}
+    <form method="POST" action="{{ url_for('main.onboarding_goal_weight') }}">
+        {{ form.hidden_tag() }}
+        <div class="mb-3">
+            {{ form.fitness_goal.label(class="form-label") }}
+            {{ form.fitness_goal(class="form-control", step="0.1", required=True) }}
+            {% for error in form.fitness_goal.errors %}
+                <span style="color: red;">{{ error }}</span>
+            {% endfor %}
+        </div>
+        <a href="{{ url_for('main.onboarding_current_weight') }}" class="btn btn-secondary">Back</a>
+        {{ form.submit(class="btn btn-primary") }}
+    </form>
+</div>
 {% endblock %}

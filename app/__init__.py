@@ -1,58 +1,81 @@
-import os
+# /app/app/__init__.py
 from flask import Flask
-from config import Config
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from flask_login import LoginManager
+from flask_session import Session
 from flask_moment import Moment
-from dotenv import load_dotenv
 from authlib.integrations.flask_client import OAuth
+import logging
+from logging.handlers import RotatingFileHandler
+import os
+from dotenv import load_dotenv
 
-# Initialiseer extensies zonder app
 db = SQLAlchemy()
 migrate = Migrate()
+login = LoginManager()
+login.login_view = 'main.login'
+sess = Session()
 moment = Moment()
 oauth = OAuth()
 
-load_dotenv()
+def create_app():
+    load_dotenv()
 
-def create_app(config_class=Config):
-    app = Flask(__name__, static_folder='static')
-    app.config.from_object(config_class)
-    app.secret_key = os.getenv('APP_SECRET_KEY')
+    app = Flask(__name__)
+    app.config.from_object('config.Config')
 
-    # Stel Redis-configuratie in
-    app.config['REDIS_URL'] = config_class.REDIS_URL
-    app.config['POSTS_PER_PAGE'] = 10
-    app.config['SESSION_COOKIE_SECURE'] = False  # Zet op True in productie
-    app.config['SESSION_COOKIE_HTTPONLY'] = True
-    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-    app.config['PERMANENT_SESSION_LIFETIME'] = 3600
-    app.config['SESSION_COOKIE_NAME'] = 'fittrack_session'
+    # Log configuration for debugging
+    logging.info(f"SESSION_TYPE: {app.config.get('SESSION_TYPE')}")
+    logging.info(f"AUTH0_CLIENT_ID: {app.config.get('AUTH0_CLIENT_ID')}")
+    logging.info(f"AUTH0_CLIENT_SECRET: {app.config.get('AUTH0_CLIENT_SECRET')[:4]}...")
+    logging.info(f"AUTH0_DOMAIN: {app.config.get('AUTH0_DOMAIN')}")
 
-    app.logger.debug(f"Session config: {app.config.get_namespace('SESSION_')}")
-
-    # Initialiseer extensies met app
+    # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
+    login.init_app(app)
+    sess.init_app(app)
     moment.init_app(app)
     oauth.init_app(app)
 
-    # Initialiseer Auth0
-    oauth.register(
-        'auth0',
-        client_id=app.config['AUTH0_CLIENT_ID'],
-        client_secret=app.config['AUTH0_CLIENT_SECRET'],
-        server_metadata_url=f"https://{app.config['AUTH0_DOMAIN']}/.well-known/openid-configuration",
-        client_kwargs={
-            'scope': 'openid profile email',
-            'prompt': 'login',
-        },
-    )
+    # Configure Auth0
+    try:
+        oauth.register(
+            name='auth0',
+            client_id=app.config['AUTH0_CLIENT_ID'],
+            client_secret=app.config['AUTH0_CLIENT_SECRET'],
+            api_base_url=f"https://{app.config['AUTH0_DOMAIN']}",
+            access_token_url=f"https://{app.config['AUTH0_DOMAIN']}/oauth/token",
+            authorize_url=f"https://{app.config['AUTH0_DOMAIN']}/authorize",
+            jwks_uri=f"https://{app.config['AUTH0_DOMAIN']}/.well-known/jwks.json",
+            client_kwargs={'scope': 'openid profile email'},
+        )
+        logging.info("Auth0 OAuth client registered successfully")
+    except Exception as e:
+        logging.error(f"Failed to register Auth0 OAuth client: {str(e)}")
+        raise
 
+    # Configure logging
+    if not app.debug:
+        if not os.path.exists('logs'):
+            os.mkdir('logs')
+        file_handler = RotatingFileHandler('logs/fittrack.log', maxBytes=10240, backupCount=10)
+        file_handler.setFormatter(logging.Formatter(
+            '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
+        file_handler.setLevel(logging.INFO)
+        app.logger.addHandler(file_handler)
+        app.logger.setLevel(logging.INFO)
+        app.logger.info('FitTrack startup')
+
+    # Register Blueprint
     from app.main import bp as main_bp
     app.register_blueprint(main_bp)
 
-    return app
-
+    # Add user loader for Flask-Login
+    @login.user_loader
+    def load_user(id):
+        from app.models import User
+        return db.session.get(User, int(id))
 
     return app
