@@ -33,3 +33,5 @@ docker-compose up --build
 
 ##nog te doen als een gebruiker is verwijdert moeten ook de bijhorende post worden verwijderd
 
+voor de excercises.csv toe te voegen in de db
+python seed_exercises.py

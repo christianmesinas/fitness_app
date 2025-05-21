@@ -65,13 +65,12 @@ class Category(str, Enum):
 class User(db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     auth0_id: so.Mapped[str] = so.mapped_column(sa.String(64), unique=True, nullable=False)
-    username: so.Mapped[str] = so.mapped_column(sa.String(64), index=True, unique=True, nullable=False)
-    name: so.Mapped[Optional[str]] = so.mapped_column(sa.String(64), index=True, unique=True, nullable=True)  # Nullable
+    name: so.Mapped[Optional[str]] = so.mapped_column(sa.String(64), index=True, nullable=True)
     email: so.Mapped[str] = so.mapped_column(sa.String(120), index=True, unique=True, nullable=False)
     sub: so.Mapped[Optional[str]] = so.mapped_column(sa.String(128), unique=True, nullable=True)  # Nullable
     last_seen: so.Mapped[Optional[datetime]] = so.mapped_column(default=lambda: datetime.now(timezone.utc))
-    fitness_goal: so.Mapped[Optional[str]] = so.mapped_column(sa.String(64))
     current_weight: so.Mapped[Optional[float]] = so.mapped_column()
+    fitness_goal: so.Mapped[Optional[float]] = so.mapped_column()
     weekly_workouts: so.Mapped[Optional[int]] = so.mapped_column()
     registration_step: so.Mapped[Optional[str]] = so.mapped_column(sa.String(20), default='name')
 
@@ -94,12 +93,12 @@ class User(db.Model):
         return str(self.id)
 
     def __repr__(self):
-        return f'<User {self.username}>'
+        return f'<User {self.name}>'
 
     def to_dict(self):
         return {
             'id': self.id,
-            'username': self.username,
+            'username': self.name,
             'email': self.email,
             'fitness_goal': self.fitness_goal,
             'current_weight': self.current_weight,
@@ -165,6 +164,24 @@ class Exercise(db.Model):
         return f'<Exercise {self.name}>'
 
     def to_dict(self):
+        try:
+            image_list = json.loads(self.images) if self.images else []
+        except json.JSONDecodeError:
+            image_list = []
+
+        # Zorg dat het pad het juiste prefix heeft
+        fixed_images = []
+        for img_path in image_list:
+            if not img_path.startswith("img/exercises/"):
+                safe_name = self.name.strip().replace(" ", "_")
+                fixed_images.append(f"img/exercises/{safe_name}/0.jpg")
+            else:
+                fixed_images.append(img_path)
+
+        if not fixed_images:
+            safe_name = self.name.strip().replace(" ", "_")
+            fixed_images = [f"img/exercises/{safe_name}/0.jpg"]
+
         return {
             'id': self.id,
             'name': self.name,
@@ -172,12 +189,11 @@ class Exercise(db.Model):
             'level': self.level,
             'mechanic': self.mechanic,
             'equipment': self.equipment,
-            'primaryMuscles': [muscle.muscle for muscle in self.primary_muscles],
-            'secondaryMuscles': [muscle.muscle for muscle in self.secondary_muscles],
             'instructions': json.loads(self.instructions) if self.instructions else [],
             'category': self.category,
-            'images': json.loads(self.images) if self.images else []
+            'images': fixed_images
         }
+
 
 class WorkoutPlan(db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)

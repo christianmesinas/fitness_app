@@ -24,7 +24,6 @@ class Config:
     MS_TRANSLATOR_KEY = os.environ.get('MS_TRANSLATOR_KEY')
     POSTS_PER_PAGE = 25
     REDIS_URL = os.environ.get('REDIS_URL') or 'redis://'
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     AUTH0_DOMAIN = os.getenv('AUTH0_DOMAIN')
     AUTH0_CLIENT_ID = os.getenv('AUTH0_CLIENT_ID')

@@ -1,5 +1,5 @@
 import logging
-from flask import Flask
+from flask import Flask, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
@@ -14,6 +14,23 @@ migrate = Migrate()
 login = LoginManager()
 moment = Moment()
 oauth = OAuth()
+
+@login.user_loader
+def load_user(user_id):
+    from app.models import User
+    logger.debug(f"Laden van gebruiker met id: {user_id}")
+    try:
+        user = db.session.get(User, int(user_id))
+        if not user:
+            session.clear()  # Optioneel, forceer nieuwe login
+            logger.debug("Geen gebruiker gevonden voor id, sessie gecleared")
+        else:
+            logger.debug(f"Gebruiker geladen: {user.name}")
+        return user
+    except Exception as e:
+        logger.error(f"Fout bij laden van gebruiker met id {user_id}: {str(e)}")
+        return None
+
 
 def create_app(config_class=Config):
     app = Flask(__name__)
@@ -41,22 +58,6 @@ def create_app(config_class=Config):
     from app.main import bp as main_bp
     app.register_blueprint(main_bp)
 
-    with app.app_context():
-        db.create_all()
+    from app import models
 
     return app
-
-@login.user_loader
-def load_user(id):
-    from app.models import User
-    logger.debug(f"Laden van gebruiker met id: {id}")
-    try:
-        user = db.session.get(User, int(id))
-        if user:
-            logger.debug(f"Gebruiker geladen: {user.username}")
-            return user
-        logger.debug("Geen gebruiker gevonden voor id")
-        return None
-    except Exception as e:
-        logger.error(f"Fout bij laden van gebruiker met id {id}: {str(e)}")
-        return None

@@ -15,21 +15,21 @@ class ExerciseForm(FlaskForm):
         self.exercise_id.choices = [(e.id, e.name) for e in Exercise.query.all()]
 
 class EditProfileForm(FlaskForm):
-    username = StringField('Username', validators=[DataRequired(), Length(min=4, max=20)])
+    name = StringField('Name', validators=[DataRequired(), Length(min=4, max=20)])
     current_weight = FloatField('Current Weight (kg)', validators=[NumberRange(min=20, max=300)])
     weekly_workouts = IntegerField('Weekly Workouts', validators=[NumberRange(min=0, max=7)])
     submit = SubmitField('Save')
 
-    def __init__(self, original_username, *args, **kwargs):
+    def __init__(self, original_name, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.original_username = original_username
+        self.original_name = original_name
 
-    def validate_username(self, username):
+    def validate_name(self, name):
         from app.models import User
-        if username.data != self.original_username:
-            user = User.query.filter_by(username=username.data).first()
+        if name.data != self.original_name:
+            user = User.query.filter_by(name=name.data).first()
             if user is not None:
-                raise ValidationError('Please use a different username.')
+                raise ValidationError('Please use a different name.')
 
 class NameForm(FlaskForm):
     name = StringField('Name', validators=[DataRequired(), Length(min=2, max=50)])
@@ -40,15 +40,14 @@ class CurrentWeightForm(FlaskForm):
     submit = SubmitField('Next')
 
 class GoalWeightForm(FlaskForm):
-    fitness_goal = SelectField('Fitness Goal', choices=[
-        ('lose_weight', 'Lose Weight'),
-        ('gain_muscle', 'Gain Muscle'),
-        ('maintain', 'Maintain')
-    ], validators=[DataRequired()])
-    submit = SubmitField('Next')
+    fitness_goal = FloatField('Streefgewicht (kg)', validators=[DataRequired(), NumberRange(min=30, max=500)])
+    submit = SubmitField('Volgende')
 
 class SearchExerciseForm(FlaskForm):
-    search_term = StringField('Search Exercise', validators=[DataRequired()])
+    search_term = StringField('Search Term')
+    difficulty = SelectField('Difficulty', choices=[('', 'Select Difficulty'), ('easy', 'Easy'), ('medium', 'Medium'), ('hard', 'Hard')])
+    muscle_group = SelectField('Muscle Group', choices=[('', 'Select Muscle'), ('chest', 'Chest'), ('back', 'Back'), ('shoulders', 'Shoulders'), ('arms', 'Arms'), ('core', 'Core'), ('legs', 'Legs'), ('glutes', 'Glutes')])
+    exercise_type = SelectField('Equipment', choices=[('', 'Select Equipment'), ('dumbbell', 'Dumbbell'), ('barbell', 'Barbell'), ('bodyweight', 'Bodyweight'), ('kettlebell', 'Kettlebell'), ('resistance_band', 'Resistance Band'), ('machine', 'Machine'), ('cable', 'Cable')])
     submit = SubmitField('Search')
 
 class WorkoutPlanForm(FlaskForm):

@@ -328,5 +328,5 @@ def seed_exercises(csv_file_path):
             print("All encoding attempts failed. Please check the CSV file encoding.")
 
 if __name__ == '__main__':
-    csv_file_path = '/app/exercises.csv'
+    csv_file_path = 'exercises.csv'
     seed_exercises(csv_file_path)

@@ -1,8 +1,8 @@
-"""Add User model with auth0_id and nullable name
+"""Initial migration
 
-Revision ID: 77656610d57d
+Revision ID: f936bc900558
 Revises: 
-Create Date: 2025-05-11 15:44:34.292691
+Create Date: 2025-05-20 12:27:49.732874
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '77656610d57d'
+revision = 'f936bc900558'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -44,13 +44,12 @@ def upgrade():
     op.create_table('user',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('auth0_id', sa.String(length=64), nullable=False),
-    sa.Column('username', sa.String(length=64), nullable=False),
-    sa.Column('name', sa.String(length=64), nullable=False),
+    sa.Column('name', sa.String(length=64), nullable=True),
     sa.Column('email', sa.String(length=120), nullable=False),
-    sa.Column('sub', sa.String(length=128), nullable=False),
+    sa.Column('sub', sa.String(length=128), nullable=True),
     sa.Column('last_seen', sa.DateTime(), nullable=True),
-    sa.Column('fitness_goal', sa.String(length=64), nullable=True),
     sa.Column('current_weight', sa.Float(), nullable=True),
+    sa.Column('fitness_goal', sa.Float(), nullable=True),
     sa.Column('weekly_workouts', sa.Integer(), nullable=True),
     sa.Column('registration_step', sa.String(length=20), nullable=True),
     sa.PrimaryKeyConstraint('id'),
@@ -59,8 +58,7 @@ def upgrade():
     )
     with op.batch_alter_table('user', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_user_email'), ['email'], unique=True)
-        batch_op.create_index(batch_op.f('ix_user_name'), ['name'], unique=True)
-        batch_op.create_index(batch_op.f('ix_user_username'), ['username'], unique=True)
+        batch_op.create_index(batch_op.f('ix_user_name'), ['name'], unique=False)
 
     op.create_table('exercise_muscle_association',
     sa.Column('exercise_id', sa.String(length=50), nullable=False),
@@ -144,7 +142,6 @@ def downgrade():
     op.drop_table('workout_plan')
     op.drop_table('exercise_muscle_association')
     with op.batch_alter_table('user', schema=None) as batch_op:
-        batch_op.drop_index(batch_op.f('ix_user_username'))
         batch_op.drop_index(batch_op.f('ix_user_name'))
         batch_op.drop_index(batch_op.f('ix_user_email'))
 

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% import "bootstrap_wtf.html" as wtf %}
+
+{% block content %}
+    {% if current_user %}
+        <div class="top-bar">
+            <a href="{{ url_for('main.index') }}">
+                <img src="{{ url_for('static', filename='img/back.svg') }}" alt="Back">
+            </a>
+        </div>
+
+        <div class="workout-name">
+            <h1>Add exercise</h1>
+            <a href="add-exercise.html" class="create-exercise">+ Create</a>
+        </div>
+
+<form class="filter-form" method="POST">
+    {{ form.hidden_tag() }}
+    <div class="form-group">
+        {{ wtf.form_field(form.difficulty) }}
+    </div>
+    <div class="form-group">
+        {{ wtf.form_field(form.muscle_group) }}
+    </div>
+    <div class="form-group">
+        {{ wtf.form_field(form.exercise_type) }}
+    </div>
+<div class="form-group-search">
+        {{ wtf.form_field(form.search_term) }}
+    </div>
+    {{ wtf.form_field(form.submit) }}
+</form>
+        <section class="exercise-blok-section">
+            {% for exercise in exercises %}
+                <section class="exercise-block">
+                    <a href="#" class="exercise-block-link">
+                        <div class="exercise-block-content">
+                           <img class="exercise-block-img"
+     src="{{ url_for('static', filename=exercise['images'][0]) if exercise['images'] else url_for('static', filename='img/placeholder.png') }}"
+     alt="{{ exercise['name'] }}">
+               <h2>{{ exercise['name'] }}</h2>
+                        </div>
+                    </a>
+                    <a href="#" class="add-exercise"> + </a>
+                </section>
+            {% else %}
+                <p>No exercises found with current filters.</p>
+            {% endfor %}
+        </section>
+    {% endif %}
+{% endblock %}

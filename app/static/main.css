@@ -143,10 +143,9 @@ input {
 /* navigation */
 
 .navbar {
-  position: fixed;
+  position: fixed !important;
   bottom: 0;
   width: 100%;
-  background-color: #fff;
   border-top: 1px solid #ccc;
   padding: 10px;
   z-index: 1000;
@@ -454,8 +453,11 @@ input {
 
 .workout-name {
   display: flex;
-  gap: 20px;
   align-items: center;
+  margin: auto;
+  width: 75%;
+  max-width: 700px;
+  justify-content: space-between;
 }
 
 /* add workout template */
@@ -721,7 +723,6 @@ select {
 }
 
 .create-exercise {
-  position: absolute;
   right: 0;
   font-size: 18px;
   color: #FF914B;

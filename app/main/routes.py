@@ -1,10 +1,17 @@
 from flask import render_template, flash, redirect, url_for, request, session, current_app
-from flask_login import login_required, current_user
+from flask_login import login_required, current_user, login_user
 from app.forms import EditProfileForm, NameForm, SearchExerciseForm, CurrentWeightForm, WorkoutPlanForm, \
     ExerciseLogForm, GoalWeightForm
+from app.models import Exercise, ExerciseMuscle
 from authlib.integrations.flask_client import OAuthError
 import logging
 from datetime import datetime, timezone
+from sqlalchemy import or_
+
+
+from .utils import check_onboarding_status
+from .. import db
+from ..models import User
 
 logger = logging.getLogger(__name__)
 logger.debug("Start van routes.py")
@@ -23,7 +30,7 @@ def test():
 def landing():
     logger.debug(f"Landing route, is_authenticated: {current_user.is_authenticated}, session: {session.get('_user_id')}")
     if current_user.is_authenticated:
-        logger.debug(f"Gebruiker ingelogd: {current_user.username}")
+        logger.debug(f"Gebruiker ingelogd: {current_user.name}")
         return redirect(url_for('main.index'))
     try:
         logger.debug("Probeer landings.html te renderen")
@@ -35,14 +42,21 @@ def landing():
 @main.route('/index')
 @login_required
 def index():
-    logger.debug(f"Index route, user: {current_user.username}, is_authenticated: {current_user.is_authenticated}")
-    return render_template('index.html', title='Home')
+    logger.debug(f"Index route aangeroepen voor {current_user.name}")
+    # Controleer onboarding-status
+    onboarding_redirect = check_onboarding_status(current_user)
+    if onboarding_redirect:
+        logger.debug(f"Redirect naar onboarding-stap: {onboarding_redirect}")
+        return redirect(onboarding_redirect)
+
+    return render_template('index.html')
+
 
 @main.route('/login')
 def login():
     logger.debug("Login route aangeroepen")
     if current_user.is_authenticated:
-        logger.debug(f"Gebruiker al ingelogd: {current_user.username}")
+        logger.debug(f"Gebruiker al ingelogd: {current_user.name}")
         return redirect(url_for('main.index'))
     try:
         from app import oauth  # Lazy import
@@ -58,7 +72,7 @@ def login():
 def signup():
     logger.debug("Signup route aangeroepen")
     if current_user.is_authenticated:
-        logger.debug(f"Gebruiker al ingelogd: {current_user.username}")
+        logger.debug(f"Gebruiker al ingelogd: {current_user.name}")
         return redirect(url_for('main.index'))
     try:
         from app import oauth  # Lazy import
@@ -73,56 +87,55 @@ def signup():
         flash('Fout bij aanmelden. Probeer opnieuw.')
         return redirect(url_for('main.landing'))
 
+from flask import redirect, url_for, session, flash
+import logging
+
+logger = logging.getLogger(__name__)
+logger.debug("Start van routes.py")
+
+
 @main.route('/callback')
 def callback():
-    logger.debug("Callback route aangeroepen")
     try:
-        from app import oauth, db  # Lazy import
+        from app import oauth, db
         token = oauth.auth0.authorize_access_token()
-        # Gebruik de volledige userinfo endpoint URL
+        token = oauth.auth0.authorize_access_token()
+        if not token:
+            logger.error("Geen toegangstoken ontvangen van Auth0.")
+            flash('Authenticatie mislukt.')
+            return redirect(url_for('main.landing'))
+
         userinfo = oauth.auth0.get(f"https://{current_app.config['AUTH0_DOMAIN']}/userinfo").json()
-        logger.debug(f"Userinfo ontvangen: {userinfo}")
 
-        from app.models import User
-        with current_app.app_context():
-            user = User.query.filter_by(email=userinfo['email']).first()
-            is_new_user = False
-            if not user:
-                user = User(
-                    username=userinfo.get('nickname', userinfo['email'].split('@')[0]),
-                    email=userinfo['email'],
-                    auth0_id=userinfo['sub']
-                )
-                db.session.add(user)
-                db.session.commit()
-                logger.debug(f"Nieuwe gebruiker aangemaakt: {user.username}")
-                is_new_user = True
-            else:
-                logger.debug(f"Bestaande gebruiker: {user.username}")
+        user = User.query.filter_by(email=userinfo['email']).first()
+        if not user:
+            user = User(
+                email=userinfo['email'],
+                auth0_id=userinfo['sub'],
+            )
+            db.session.add(user)
+            db.session.commit()
 
-            from flask_login import login_user
-            login_user(user)
-            logger.debug(f"Gebruiker ingelogd: {user.username}")
-            session['new_user'] = is_new_user
-            logger.debug(f"Session new_user ingesteld: {session['new_user']}")
+        login_user(user)
+        logger.debug(f"User ingelogd: id={user.get_id()}, name={user.name}")
 
-            if session.get('new_user'):
-                logger.debug("Redirect naar onboarding/name")
-                return redirect(url_for('main.onboarding_name'))
-            logger.debug("Redirect naar index")
-            return redirect(url_for('main.index'))
-    except OAuthError as e:
-        logger.error(f"OAuth fout in callback: {str(e)}")
+        session['new_user'] = False  # je kan ook hier checken
+
+        onboarding_redirect = check_onboarding_status(user)
+        if onboarding_redirect:
+            return redirect(onboarding_redirect)
+
+        return redirect(url_for('main.index'))
+    except Exception as e:
+        logger.error(f"Callback fout: {e}")
         flash('Authenticatie mislukt. Probeer opnieuw.')
         return redirect(url_for('main.landing'))
-    except Exception as e:
-        logger.error(f"Fout in callback: {str(e)}", exc_info=True)
-        return redirect(url_for('main.landing'))
+
 
 @main.route('/logout')
 @login_required
 def logout():
-    logger.debug(f"Logout route, user: {current_user.username}")
+    logger.debug(f"Logout route, user: {current_user.name}")
     from flask_login import logout_user
     logout_user()
     session.clear()
@@ -131,93 +144,144 @@ def logout():
                     '&returnTo=' + url_for('main.landing', _external=True))
 
 @main.route('/onboarding/name', methods=['GET', 'POST'])
-@login_required
 def onboarding_name():
-    logger.debug(f"Onboarding name route, user: {current_user.username}")
-    if not session.get('new_user'):
-        return redirect(url_for('main.index'))
-    from app import db  # Lazy import
+    user = current_user
+
+    # Maak een formulier aan
     form = NameForm()
+
     if form.validate_on_submit():
-        current_user.username = form.name.data
+        # Update de naam van de gebruiker in de database
+        user.name = form.name.data
         db.session.commit()
-        logger.debug(f"Gebruikersnaam bijgewerkt: {current_user.username}")
+
+        # Redirect naar de volgende onboarding stap
         return redirect(url_for('main.onboarding_current_weight'))
-    return render_template('onboarding_name.html', form=form)
+
+    return render_template('onboarding_name.html', form=form, user=user)
+
 
 @main.route('/onboarding/current_weight', methods=['GET', 'POST'])
 @login_required
 def onboarding_current_weight():
-    logger.debug(f"Onboarding current weight route, user: {current_user.username}")
-    if not session.get('new_user'):
-        return redirect(url_for('main.index'))
-    from app import db  # Lazy import
     form = CurrentWeightForm()
+    from app import db  # Lazy import
     if form.validate_on_submit():
         current_user.current_weight = form.current_weight.data
-        current_user.weight_updated = datetime.now(timezone.utc)
         db.session.commit()
-        logger.debug(f"Huidig gewicht bijgewerkt: {current_user.current_weight}")
+        logger.debug(f"Onboarding huidig gewicht voltooid voor {current_user.name}, huidig gewicht: {current_user.current_weight}")
         return redirect(url_for('main.onboarding_goal_weight'))
     return render_template('onboarding_current_weight.html', form=form)
 
 @main.route('/onboarding/goal_weight', methods=['GET', 'POST'])
 @login_required
 def onboarding_goal_weight():
-    logger.debug(f"Onboarding goal weight route, user: {current_user.username}")
-    if not session.get('new_user'):
-        return redirect(url_for('main.index'))
-    from app import db  # Lazy import
     form = GoalWeightForm()
     if form.validate_on_submit():
         current_user.fitness_goal = form.fitness_goal.data
         db.session.commit()
-        logger.debug(f"Fitness doel bijgewerkt: {current_user.fitness_goal}")
-        session.pop('new_user', None)
+
+        # Doorsturen naar volgende onboarding-stap
+        onboarding_redirect = check_onboarding_status(current_user)
+        if onboarding_redirect:
+            return redirect(onboarding_redirect)
+
         return redirect(url_for('main.index'))
-    return render_template('onboarding_goal_weight.html', form=form)
+
+    return render_template(
+        'onboarding_goal_weight.html',
+        form=form,
+        user=current_user
+    )
+
 
 @main.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
-    logger.debug(f"Profile route, user: {current_user.username}")
+    logger.debug(f"Profile route, user: {current_user.name}")
     from app import db  # Lazy import
-    form = EditProfileForm(current_user.username)
+    form = EditProfileForm(current_user.name)
     if form.validate_on_submit():
-        current_user.username = form.username.data
+        current_user.name = form.name.data
         current_user.current_weight = form.current_weight.data
         current_user.weekly_workouts = form.weekly_workouts.data
         db.session.commit()
-        logger.debug(f"Profiel bijgewerkt: {current_user.username}")
+        logger.debug(f"Profiel bijgewerkt: {current_user.name}")
         flash('Je profiel is bijgewerkt!')
         return redirect(url_for('main.profile'))
     elif request.method == 'GET':
-        form.username.data = current_user.username
+        form.name.data = current_user.name
         form.current_weight.data = current_user.current_weight
         form.weekly_workouts.data = current_user.weekly_workouts
-    return render_template('profile.html', form=form)
+    return render_template('user.html', user=current_user)
+
+@main.route('/add_workout')
+@login_required
+def add_workout():
+    logger.debug(f"Add workout page geopend door {current_user.name}")
+    return render_template('add_workout.html')
 
 @main.route('/search_exercise', methods=['GET', 'POST'])
 @login_required
 def search_exercise():
-    logger.debug(f"Search exercise route, user: {current_user.username}")
-    from app import db  # Lazy import
+    logger.debug(f"Search exercise route called by: {current_user.name}")
     form = SearchExerciseForm()
     exercises = []
+
     if form.validate_on_submit():
-        search_term = form.search_term.data
-        from app.models import Exercise
-        exercises = Exercise.query.filter(
-            Exercise.name.ilike(f'%{search_term}%') |
-            Exercise.description.ilike(f'%{search_term}%')
-        ).all()
-        logger.debug(f"Oefeningen gevonden: {len(exercises)}")
-    return render_template('search_exercise.html', form=form, exercises=exercises)
+        search_term = form.search_term.data.strip() if form.search_term.data else ""
+        difficulty = form.difficulty.data
+        muscle_group = form.muscle_group.data
+        exercise_type = form.exercise_type.data
+
+        query = Exercise.query
+        if search_term:
+            query = query.filter(Exercise.name.ilike(f'%{search_term}%'))
+        if difficulty:
+            level_map = {"easy": "beginner", "medium": "intermediate", "hard": "expert"}
+            level = level_map.get(difficulty)
+            if level:
+                query = query.filter(Exercise.level == level)
+        if muscle_group:
+            query = query.join(Exercise.primary_muscles).filter(ExerciseMuscle.muscle == muscle_group)
+        if exercise_type:
+            query = query.filter(Exercise.equipment == exercise_type)
+
+        exercises = query.limit(25).all()
+
+        if not exercises and (search_term or difficulty or muscle_group or exercise_type):
+            flash('Geen oefeningen gevonden. Probeer andere filters.')
+    else:
+        # Handle GET request with query parameters
+        search_term = request.args.get('search_term', '').strip()
+        difficulty = request.args.get('difficulty', '')
+        muscle_group = request.args.get('muscle_group', '')
+        exercise_type = request.args.get('exercise_type', '')
+
+        query = Exercise.query
+        if search_term:
+            query = query.filter(Exercise.name.ilike(f'%{search_term}%'))
+        if difficulty:
+            level_map = {"easy": "beginner", "medium": "intermediate", "hard": "expert"}
+            level = level_map.get(difficulty)
+            if level:
+                query = query.filter(Exercise.level == level)
+        if muscle_group:
+            query = query.join(Exercise.primary_muscles).filter(ExerciseMuscle.muscle == muscle_group)
+        if exercise_type:
+            query = query.filter(Exercise.equipment == exercise_type)
+
+        exercises = query.limit(25).all()
+
+    exercises_dict = [ex.to_dict() for ex in exercises]
+    for ex in exercises_dict:
+        logger.debug(f"Exercise: {ex['name']}, Images: {ex['images']}")
+    return render_template('search_exercise.html', form=form, exercises=exercises_dict)
 
 @main.route('/create_workout_plan', methods=['GET', 'POST'])
 @login_required
 def create_workout_plan():
-    logger.debug(f"Create workout plan route, user: {current_user.username}")
+    logger.debug(f"Create workout plan route, user: {current_user.name}")
     from app import db  # Lazy import
     form = WorkoutPlanForm()
     if form.validate_on_submit():
@@ -243,7 +307,7 @@ def create_workout_plan():
 @main.route('/log_exercise', methods=['GET', 'POST'])
 @login_required
 def log_exercise():
-    logger.debug(f"Log exercise route, user: {current_user.username}")
+    logger.debug(f"Log exercise route, user: {current_user.name}")
     from app import db  # Lazy import
     form = ExerciseLogForm()
     if form.validate_on_submit():

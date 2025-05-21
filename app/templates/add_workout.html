@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% import "bootstrap_wtf.html" as wtf %}
+
+{% block content %}
+<div class="top-bar">
+  <!-- go back to previous page -->
+<a href="{{ url_for('main.index') }}">
+<img src="{{ url_for('static', filename='img/back.svg') }}" alt="Back">
+  </a>
+</div>
+
+<section class="header-section">
+  <div class="workout-name">
+    <h1>Training 1</h1>
+    <!-- button to change the training name -->
+    <a href="#">
+      <img src="{{ url_for('static', filename='img/pencil.svg') }}" alt="edit name" class="pencil-icon" />
+    </a>
+  </div>
+</section>
+
+<section class="exercise-blok-section">
+
+  <section class="exercise-block">
+    <!-- drag and drop functionaliteit -->
+    <img class="drag-drop-icon" src="{{ url_for('static', filename='img/drag-drop.svg') }}" alt="drag-and-drop" />
+    <img class="exercise-block-img" src="{{ url_for('static', filename='img/bicep.webp') }}" alt="Bicep image" />
+    <div class="exercise-text">
+      <h2>Bicep curl</h2>
+      <p>3 sets 20 reps / 10 kg</p>
+    </div>
+    <!-- open pop up with option: delete / edit (add-exercise template) -->
+    <a href="#" class="setting-dots-workout">...</a>
+  </section>
+
+<a href="{{ url_for('main.search_exercise') }}" class="second-grey-cta-btn">Search exercise</a>
+  <a href="#" class="orange-btn-outline add-new-workout-btn">Save training</a>
+
+</section>
+{% endblock %}
