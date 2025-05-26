@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from sqlalchemy import or_
 
 
-from .utils import check_onboarding_status
+from .utils import check_onboarding_status, fix_image_path
 from .. import db
 from ..models import User
 
@@ -98,7 +98,6 @@ logger.debug("Start van routes.py")
 def callback():
     try:
         from app import oauth, db
-        token = oauth.auth0.authorize_access_token()
         token = oauth.auth0.authorize_access_token()
         if not token:
             logger.error("Geen toegangstoken ontvangen van Auth0.")
@@ -275,6 +274,9 @@ def search_exercise():
 
     exercises_dict = [ex.to_dict() for ex in exercises]
     for ex in exercises_dict:
+        if ex.get('images'):
+            ex['images'] = [fix_image_path(img) for img in ex['images']]
+
         logger.debug(f"Exercise: {ex['name']}, Images: {ex['images']}")
     return render_template('search_exercise.html', form=form, exercises=exercises_dict)
 
