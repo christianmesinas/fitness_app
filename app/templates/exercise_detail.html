@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+    {% if current_user %}
+        <div class="top-bar">
+            <a href="{{ url_for('main.index') }}">
+                <img src="{{ url_for('static', filename='img/back.svg') }}" alt="Back">
+            </a>
+        </div>
+
+        <section class="header-section">
+            <div class="workout-name">
+                <h1>{{ exercise.name }}</h1>
+            </div>
+            <a href="{{ url_for('main.search_exercise') }}" class="circle-add-button">+</a>
+        </section>
+
+        <section class="single-exercise-page">
+            <h2>Afbeelding</h2>
+            {% if exercise.images %}
+  <img class="single-exercise-img" src="{{ url_for('static', filename=exercise.images[0]) }}" alt="{{ exercise.name }}">
+{% else %}
+  <img class="single-exercise-img" src="{{ url_for('static', filename='img/placeholder.png') }}" alt="{{ exercise.name }}">
+{% endif %}
+
+            <h2>Instructies</h2>
+<ol class="single-exercise-instructions">
+  {% for step in exercise.instructions %}
+    <li>{{ step }}</li>
+  {% endfor %}
+</ol>
+
+        <h2>Video tutorial</h2>
+<a class="orange-btn-outline watch-video-btn"
+   href="https://www.youtube.com/results?search_query={{ exercise.name | replace(' ', '+') }}+exercise"
+   target="_blank" rel="noopener noreferrer">
+    Zoek op YouTube
+</a>
+
+            <h2>Difficulty</h2>
+            <ul class="exercise-labels-list">
+                <li>{{ exercise.level|capitalize }}</li>
+            </ul>
+
+         <h2>Mechanic</h2>
+<ul class="exercise-labels-list">
+    <li>{{ exercise.mechanic|capitalize }}</li>
+</ul>
+
+<h2>Category</h2>
+<ul class="exercise-labels-list">
+    <li>{{ exercise.category|capitalize }}</li>
+</ul>
+
+<h2>Equipment</h2>
+<ul class="exercise-labels-list">
+    <li>{{ exercise.equipment|capitalize }}</li>
+</ul>
+
+            {% if exercise.youtube_url %}
+                <a href="{{ exercise.youtube_url }}" class="orange-btn-outline watch-video-btn" target="_blank" rel="noopener noreferrer">
+                    Watch video tutorial
+                </a>
+            {% endif %}
+        </section>
+    {% else %}
+        <p>Je moet ingelogd zijn om deze pagina te bekijken.</p>
+    {% endif %}
+{% endblock %}

@@ -1,15 +1,15 @@
-from flask import render_template, flash, redirect, url_for, request, session, current_app
+from flask import render_template, request, current_app
 from flask_login import login_required, current_user, login_user
 from app.forms import EditProfileForm, NameForm, SearchExerciseForm, CurrentWeightForm, WorkoutPlanForm, \
     ExerciseLogForm, GoalWeightForm
-from app.models import Exercise, ExerciseMuscle
-from authlib.integrations.flask_client import OAuthError
+from app.models import Exercise
 import logging
 from datetime import datetime, timezone
-from sqlalchemy import or_
+
+import json
 
 
-from .utils import check_onboarding_status, fix_image_path
+from .utils import check_onboarding_status, fix_image_path, clean_instruction_text
 from .. import db
 from ..models import User
 
@@ -230,8 +230,9 @@ def search_exercise():
     if form.validate_on_submit():
         search_term = form.search_term.data.strip() if form.search_term.data else ""
         difficulty = form.difficulty.data
-        muscle_group = form.muscle_group.data
+        mechanic = form.mechanic.data
         exercise_type = form.exercise_type.data
+        category = form.category.data
 
         query = Exercise.query
         if search_term:
@@ -241,21 +242,23 @@ def search_exercise():
             level = level_map.get(difficulty)
             if level:
                 query = query.filter(Exercise.level == level)
-        if muscle_group:
-            query = query.join(Exercise.primary_muscles).filter(ExerciseMuscle.muscle == muscle_group)
+        if mechanic and mechanic != 'NONE':
+            query = query.filter(Exercise.mechanic == mechanic)
         if exercise_type:
             query = query.filter(Exercise.equipment == exercise_type)
-
+        if category:
+            query = query.filter(Exercise.category == category)
         exercises = query.limit(25).all()
 
-        if not exercises and (search_term or difficulty or muscle_group or exercise_type):
+        if not exercises and (search_term or difficulty or mechanic or exercise_type):
             flash('Geen oefeningen gevonden. Probeer andere filters.')
     else:
         # Handle GET request with query parameters
         search_term = request.args.get('search_term', '').strip()
         difficulty = request.args.get('difficulty', '')
-        muscle_group = request.args.get('muscle_group', '')
+        mechanic = request.args.get('mechanic', '')
         exercise_type = request.args.get('exercise_type', '')
+        category = request.args.get('category', '')
 
         query = Exercise.query
         if search_term:
@@ -265,11 +268,12 @@ def search_exercise():
             level = level_map.get(difficulty)
             if level:
                 query = query.filter(Exercise.level == level)
-        if muscle_group:
-            query = query.join(Exercise.primary_muscles).filter(ExerciseMuscle.muscle == muscle_group)
+        if mechanic:
+            query = query.join(Exercise.mechanic).filter(Exercise.mechanic == mechanic)
         if exercise_type:
             query = query.filter(Exercise.equipment == exercise_type)
-
+        if category:
+            query = query.filter(Exercise.category == category)
         exercises = query.limit(25).all()
 
     exercises_dict = [ex.to_dict() for ex in exercises]
@@ -305,6 +309,46 @@ def create_workout_plan():
         flash('Workout plan aangemaakt!')
         return redirect(url_for('main.index'))
     return render_template('create_workout_plan.html', form=form)
+
+@main.route('/exercise/<int:exercise_id>')
+@login_required
+def exercise_detail(exercise_id):
+    exercise = Exercise.query.get_or_404(exercise_id)
+
+    # Zet de images correct om naar lijst als het een string is
+    raw_images = exercise.images or []
+    if isinstance(raw_images, str):
+        try:
+            raw_images = json.loads(raw_images)
+        except Exception as e:
+            logger.error(f"Kon images niet parsen: {raw_images} — fout: {e}")
+            raw_images = []
+
+    fixed_images = [fix_image_path(img) for img in raw_images]
+
+    raw_instructions = exercise.instructions or []
+    if isinstance(raw_instructions, str):
+        try:
+            raw_instructions = json.loads(raw_instructions)
+        except Exception as e:
+            logger.error(f"Kon instructies niet parsen: {raw_instructions} — fout: {e}")
+            raw_instructions = []
+
+    cleaned_instructions = [clean_instruction_text(step) for step in raw_instructions]
+
+    exercise_dict = {
+        'name': exercise.name,
+        'images': fixed_images,
+        'instructions': cleaned_instructions,
+        'level': exercise.level,
+        'equipment': exercise.equipment,
+        'mechanic': exercise.mechanic,
+        'category': exercise.category,
+    }
+
+    logger.debug(f"Images in exercise_dict: {exercise_dict['images']}")
+    return render_template('exercise_detail.html', exercise=exercise_dict)
+
 
 @main.route('/log_exercise', methods=['GET', 'POST'])
 @login_required

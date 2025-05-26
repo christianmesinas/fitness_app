@@ -20,32 +20,39 @@
         {{ wtf.form_field(form.difficulty) }}
     </div>
     <div class="form-group">
-        {{ wtf.form_field(form.muscle_group) }}
+        {{ wtf.form_field(form.mechanic) }}
     </div>
     <div class="form-group">
         {{ wtf.form_field(form.exercise_type) }}
     </div>
+    <div class="form-group">
+        {{ wtf.form_field(form.category) }}
+    </div>
 <div class="form-group-search">
         {{ wtf.form_field(form.search_term) }}
     </div>
-    {{ wtf.form_field(form.submit) }}
+   <div class="form-group-buttons">
+        {{ wtf.form_field(form.submit) }}
+        <a href="{{ url_for('main.search_exercise') }}" class="btn btn-secondary">Reset Filters</a>
+    </div>
 </form>
-        <section class="exercise-blok-section">
-            {% for exercise in exercises %}
-                <section class="exercise-block">
-                    <a href="#" class="exercise-block-link">
-                        <div class="exercise-block-content">
-                           <img class="exercise-block-img"
-     src="{{ url_for('static', filename=exercise['images'][0]) if exercise['images'] else url_for('static', filename='img/placeholder.png') }}"
-     alt="{{ exercise['name'] }}">
-               <h2>{{ exercise['name'] }}</h2>
-                        </div>
-                    </a>
-                    <a href="#" class="add-exercise"> + </a>
-                </section>
-            {% else %}
-                <p>No exercises found with current filters.</p>
-            {% endfor %}
+<section class="exercise-blok-section">
+    {% for exercise in exercises %}
+        <section class="exercise-block">
+            <a href="{{ url_for('main.exercise_detail', exercise_id=exercise['id']) }}" class="exercise-block-link">
+                <div class="exercise-block-content">
+                   <img class="exercise-block-img"
+                        src="{{ url_for('static', filename=exercise['images'][0]) if exercise['images'] else url_for('static', filename='img/placeholder.png') }}"
+                        alt="{{ exercise['name'] }}">
+                   <h2>{{ exercise['name'] }}</h2>
+                </div>
+            </a>
+            <a href="#" class="add-exercise"> + </a>
         </section>
+    {% else %}
+        <p>No exercises found with current filters.</p>
+    {% endfor %}
+</section>
+
     {% endif %}
 {% endblock %}

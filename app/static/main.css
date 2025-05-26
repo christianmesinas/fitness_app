@@ -672,6 +672,7 @@ select {
   max-width: 700px;
   margin: auto;
   margin-top: 60px;
+  margin-bottom: 100px;
 }
 
 .single-exercise-page h2 {

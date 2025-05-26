@@ -46,8 +46,38 @@ class GoalWeightForm(FlaskForm):
 class SearchExerciseForm(FlaskForm):
     search_term = StringField('Search Term')
     difficulty = SelectField('Difficulty', choices=[('', 'Select Difficulty'), ('easy', 'Easy'), ('medium', 'Medium'), ('hard', 'Hard')])
-    muscle_group = SelectField('Muscle Group', choices=[('', 'Select Muscle'), ('chest', 'Chest'), ('back', 'Back'), ('shoulders', 'Shoulders'), ('arms', 'Arms'), ('core', 'Core'), ('legs', 'Legs'), ('glutes', 'Glutes')])
-    exercise_type = SelectField('Equipment', choices=[('', 'Select Equipment'), ('dumbbell', 'Dumbbell'), ('barbell', 'Barbell'), ('bodyweight', 'Bodyweight'), ('kettlebell', 'Kettlebell'), ('resistance_band', 'Resistance Band'), ('machine', 'Machine'), ('cable', 'Cable')])
+    mechanic = SelectField('Mechanic', choices=[
+        ('', 'Select Mechanic'),
+        ('COMPOUND', 'Compound'),
+        ('ISOLATION', 'Isolation'),
+        ('NONE', 'Geen')
+    ])
+    category = SelectField('Category', choices=[
+        ('', 'Select Category'),
+        ('CARDIO', 'Cardio'),
+        ('OLYMPIC_WEIGHTLIFTING', 'Olympic Weightlifting'),
+        ('PLYOMETRICS', 'Plyometrics'),
+        ('POWERLIFTING', 'Powerlifting'),
+        ('STRENGTH', 'Strength'),
+        ('STRETCHING', 'Stretching'),
+        ('STRONGMAN', 'Strongman')
+    ])
+    exercise_type = SelectField('Equipment', choices=[
+        ('', 'Select Equipment'),
+        ('BANDS', 'Resistance Bands'),
+        ('BARBELL', 'Barbell'),
+        ('BODY_ONLY', 'Bodyweight'),
+        ('CABLE', 'Cable'),
+        ('DUMBBELL', 'Dumbbell'),
+        ('EXERCISE_BALL', 'Exercise Ball'),
+        ('E_Z_CURL_BAR', 'EZ Curl Bar'),
+        ('FOAM_ROLL', 'Foam Roll'),
+        ('KETTLEBELLS', 'Kettlebell'),
+        ('MACHINE', 'Machine'),
+        ('MEDICINE_BALL', 'Medicine Ball'),
+        ('OTHER', 'Other')
+    ])
+
     submit = SubmitField('Search')
 
 class WorkoutPlanForm(FlaskForm):
