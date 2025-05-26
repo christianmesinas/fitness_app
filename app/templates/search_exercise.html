@@ -14,45 +14,94 @@
             <a href="add-exercise.html" class="create-exercise">+ Create</a>
         </div>
 
-<form class="filter-form" method="POST">
-    {{ form.hidden_tag() }}
-    <div class="form-group">
-        {{ wtf.form_field(form.difficulty) }}
-    </div>
-    <div class="form-group">
-        {{ wtf.form_field(form.mechanic) }}
-    </div>
-    <div class="form-group">
-        {{ wtf.form_field(form.exercise_type) }}
-    </div>
-    <div class="form-group">
-        {{ wtf.form_field(form.category) }}
-    </div>
-<div class="form-group-search">
-        {{ wtf.form_field(form.search_term) }}
-    </div>
-   <div class="form-group-buttons">
-        {{ wtf.form_field(form.submit) }}
-        <a href="{{ url_for('main.search_exercise') }}" class="btn btn-secondary">Reset Filters</a>
-    </div>
-</form>
-<section class="exercise-blok-section">
-    {% for exercise in exercises %}
-        <section class="exercise-block">
-            <a href="{{ url_for('main.exercise_detail', exercise_id=exercise['id']) }}" class="exercise-block-link">
-                <div class="exercise-block-content">
-                   <img class="exercise-block-img"
-                        src="{{ url_for('static', filename=exercise['images'][0]) if exercise['images'] else url_for('static', filename='img/placeholder.png') }}"
-                        alt="{{ exercise['name'] }}">
-                   <h2>{{ exercise['name'] }}</h2>
-                </div>
-            </a>
-            <a href="#" class="add-exercise"> + </a>
+<form class="filter-form" method="GET" id="filter-form">
+            {{ form.hidden_tag() }}
+            <div class="form-group">
+                {{ wtf.form_field(form.difficulty) }}
+            </div>
+            <div class="form-group">
+                {{ wtf.form_field(form.mechanic) }}
+            </div>
+            <div class="form-group">
+                {{ wtf.form_field(form.exercise_type) }}
+            </div>
+            <div class="form-group">
+                {{ wtf.form_field(form.category) }}
+            </div>
+            <div class="form-group-search">
+                {{ wtf.form_field(form.search_term) }}
+            </div>
+            <div class="form-group-buttons">
+<button type="submit" class="orange-btn-outline add-new-workout-btn">{{ form.submit.label.text }}</button>
+                <a href="{{ url_for('main.search_exercise') }}" class="btn btn-secondary">Reset Filters</a>
+            </div>
+        </form>
+
+        <section class="exercise-blok-section" id="exercise-list">
+            {% include '_exercise_items.html' %}
         </section>
-    {% else %}
-        <p>No exercises found with current filters.</p>
-    {% endfor %}
-</section>
+
+        {% if pagination.has_next %}
+            <button id="load-more-btn" data-next-page="{{ pagination.next_num }}" class="btn btn-primary">Load More</button>
+        {% endif %}
 
     {% endif %}
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const loadMoreBtn = document.getElementById("load-more-btn");
+    const exerciseList = document.getElementById("exercise-list");
+
+    if (loadMoreBtn) {
+        loadMoreBtn.addEventListener("click", function () {
+            const nextPage = this.getAttribute("data-next-page");
+
+            // Huidige query params ophalen
+            const params = new URLSearchParams(window.location.search);
+            params.set('page', nextPage);
+
+            fetch(`{{ url_for('main.search_exercise') }}?${params.toString()}`, {
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest"
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error("Netwerkfout bij ophalen oefeningen");
+                }
+                return response.text();
+            })
+            .then(data => {
+                const tempDiv = document.createElement("div");
+                tempDiv.innerHTML = data;
+
+                Array.from(tempDiv.children).forEach(child => {
+                    exerciseList.appendChild(child);
+                });
+
+                // Nieuwe page ophalen en updaten
+                const newNextPage = parseInt(nextPage) + 1;
+                params.set('page', newNextPage);
+
+                fetch(`{{ url_for('main.search_exercise') }}?${params.toString()}`, {
+                    headers: { "X-Requested-With": "XMLHttpRequest" }
+                })
+                .then(res => res.text())
+                .then(content => {
+                    if (!content.trim()) {
+                        loadMoreBtn.style.display = 'none';
+                    } else {
+                        loadMoreBtn.setAttribute("data-next-page", newNextPage);
+                    }
+                });
+            })
+            .catch(error => {
+                console.error("Fout bij laden van oefeningen:", error);
+            });
+        });
+    }
+});
+</script>
+
+
 {% endblock %}

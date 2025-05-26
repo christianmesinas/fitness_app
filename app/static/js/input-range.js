@@ -18,3 +18,13 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 });
+
+    function syncWeightInputs(val) {
+        document.getElementById('current-weight-range').value = val;
+        document.getElementById('current-weight-input').value = val;
+    }
+
+    function syncGoalInputs(val) {
+        document.getElementById('goal-weight-range').value = val;
+        document.getElementById('goal-weight-input').value = val;
+    }

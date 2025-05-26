@@ -1,7 +1,13 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, FloatField, SelectField, IntegerField, SubmitField, ValidationError
-from wtforms import FieldList, FormField
+from wtforms import FieldList, FormField, StringField, FloatField, SelectField, IntegerField, SubmitField, ValidationError
 from wtforms.validators import DataRequired, Length, NumberRange
+from wtforms.widgets import Input
+
+
+class RangeInput(Input):
+    input_type = 'range'
+    validation_attrs = frozenset(['required', 'min', 'max', 'step'])
+
 
 class ExerciseForm(FlaskForm):
     exercise_id = SelectField('Exercise', coerce=int, validators=[DataRequired()])
@@ -36,7 +42,7 @@ class NameForm(FlaskForm):
     submit = SubmitField('Next')
 
 class CurrentWeightForm(FlaskForm):
-    current_weight = FloatField('Current Weight (kg)', validators=[DataRequired(), NumberRange(min=20, max=300)])
+    current_weight = FloatField('Current Weight', widget=RangeInput())
     submit = SubmitField('Next')
 
 class GoalWeightForm(FlaskForm):
@@ -45,7 +51,12 @@ class GoalWeightForm(FlaskForm):
 
 class SearchExerciseForm(FlaskForm):
     search_term = StringField('Search Term')
-    difficulty = SelectField('Difficulty', choices=[('', 'Select Difficulty'), ('easy', 'Easy'), ('medium', 'Medium'), ('hard', 'Hard')])
+    difficulty = SelectField('Difficulty', choices=[
+        ('', 'Select Difficulty'),
+        ('BEGINNER', 'Beginner'),
+        ('INTERMEDIATE', 'Intermediate'),
+        ('EXPERT', 'Expert')
+    ])
     mechanic = SelectField('Mechanic', choices=[
         ('', 'Select Mechanic'),
         ('COMPOUND', 'Compound'),

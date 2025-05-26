@@ -17,7 +17,11 @@
     </div>
 
 
-        {% if current_user.is_authenticated %}
+{% if current_user.is_authenticated and request.endpoint not in [
+    'main.onboarding_name',
+    'main.onboarding_current_weight',
+    'main.onboarding_goal_weight'
+] %}
     <nav class="navbar ">
         <a href="{{ url_for('main.index') }}">Home</a>
 

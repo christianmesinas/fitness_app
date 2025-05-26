@@ -1,5 +1,5 @@
-from flask import render_template, request, current_app
-from flask_login import login_required, current_user, login_user
+from flask import render_template, request, current_app, session, redirect, url_for, flash
+from flask_login import login_required, current_user, login_user, logout_user
 from app.forms import EditProfileForm, NameForm, SearchExerciseForm, CurrentWeightForm, WorkoutPlanForm, \
     ExerciseLogForm, GoalWeightForm
 from app.models import Exercise
@@ -55,9 +55,12 @@ def index():
 @main.route('/login')
 def login():
     logger.debug("Login route aangeroepen")
+
     if current_user.is_authenticated:
-        logger.debug(f"Gebruiker al ingelogd: {current_user.name}")
-        return redirect(url_for('main.index'))
+        logger.debug(f"Gebruiker al ingelogd: {current_user.name} — uitloggen voor login")
+        logout_user()
+        session.clear()
+
     try:
         from app import oauth  # Lazy import
         redirect_response = oauth.auth0.authorize_redirect(redirect_uri=url_for('main.callback', _external=True))
@@ -68,12 +71,16 @@ def login():
         flash('Fout bij inloggen. Probeer opnieuw.')
         return redirect(url_for('main.landing'))
 
+
 @main.route('/signup')
 def signup():
     logger.debug("Signup route aangeroepen")
+
     if current_user.is_authenticated:
-        logger.debug(f"Gebruiker al ingelogd: {current_user.name}")
-        return redirect(url_for('main.index'))
+        logger.debug(f"Gebruiker al ingelogd: {current_user.name} — uitloggen voor signup")
+        logout_user()
+        session.clear()
+
     try:
         from app import oauth  # Lazy import
         redirect_response = oauth.auth0.authorize_redirect(
@@ -86,13 +93,6 @@ def signup():
         logger.error(f"Auth0 signup fout: {str(e)}")
         flash('Fout bij aanmelden. Probeer opnieuw.')
         return redirect(url_for('main.landing'))
-
-from flask import redirect, url_for, session, flash
-import logging
-
-logger = logging.getLogger(__name__)
-logger.debug("Start van routes.py")
-
 
 @main.route('/callback')
 def callback():
@@ -223,66 +223,47 @@ def add_workout():
 @main.route('/search_exercise', methods=['GET', 'POST'])
 @login_required
 def search_exercise():
-    logger.debug(f"Search exercise route called by: {current_user.name}")
-    form = SearchExerciseForm()
-    exercises = []
+    page = request.args.get('page', 1, type=int)
+    per_page = 25
 
-    if form.validate_on_submit():
-        search_term = form.search_term.data.strip() if form.search_term.data else ""
-        difficulty = form.difficulty.data
-        mechanic = form.mechanic.data
-        exercise_type = form.exercise_type.data
-        category = form.category.data
+    form = SearchExerciseForm(request.args)
+    query = Exercise.query
 
-        query = Exercise.query
-        if search_term:
-            query = query.filter(Exercise.name.ilike(f'%{search_term}%'))
-        if difficulty:
-            level_map = {"easy": "beginner", "medium": "intermediate", "hard": "expert"}
-            level = level_map.get(difficulty)
-            if level:
-                query = query.filter(Exercise.level == level)
-        if mechanic and mechanic != 'NONE':
-            query = query.filter(Exercise.mechanic == mechanic)
-        if exercise_type:
-            query = query.filter(Exercise.equipment == exercise_type)
-        if category:
-            query = query.filter(Exercise.category == category)
-        exercises = query.limit(25).all()
+    # ⬇️ Filters toepassen op de query (via GET)
+    if request.args:
+        if request.args.get('difficulty'):
+            query = query.filter(Exercise.level == request.args.get('difficulty'))
+        if request.args.get('mechanic'):
+            query = query.filter(Exercise.mechanic == request.args.get('mechanic'))
+        if request.args.get('exercise_type'):
+            query = query.filter(Exercise.equipment == request.args.get('exercise_type'))
+        if request.args.get('category'):
+            query = query.filter(Exercise.category == request.args.get('category'))
+        if request.args.get('search_term'):
+            term = request.args.get('search_term')
+            query = query.filter(Exercise.name.ilike(f"%{term}%"))
 
-        if not exercises and (search_term or difficulty or mechanic or exercise_type):
-            flash('Geen oefeningen gevonden. Probeer andere filters.')
-    else:
-        # Handle GET request with query parameters
-        search_term = request.args.get('search_term', '').strip()
-        difficulty = request.args.get('difficulty', '')
-        mechanic = request.args.get('mechanic', '')
-        exercise_type = request.args.get('exercise_type', '')
-        category = request.args.get('category', '')
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    exercises = pagination.items
 
-        query = Exercise.query
-        if search_term:
-            query = query.filter(Exercise.name.ilike(f'%{search_term}%'))
-        if difficulty:
-            level_map = {"easy": "beginner", "medium": "intermediate", "hard": "expert"}
-            level = level_map.get(difficulty)
-            if level:
-                query = query.filter(Exercise.level == level)
-        if mechanic:
-            query = query.join(Exercise.mechanic).filter(Exercise.mechanic == mechanic)
-        if exercise_type:
-            query = query.filter(Exercise.equipment == exercise_type)
-        if category:
-            query = query.filter(Exercise.category == category)
-        exercises = query.limit(25).all()
+    # ⬇️ Afbeeldingen-parsing
+    for exercise in exercises:
+        if isinstance(exercise.images, str):
+            try:
+                exercise.images = json.loads(exercise.images)
+            except json.JSONDecodeError:
+                exercise.images = []
 
-    exercises_dict = [ex.to_dict() for ex in exercises]
-    for ex in exercises_dict:
-        if ex.get('images'):
-            ex['images'] = [fix_image_path(img) for img in ex['images']]
+    # ⬇️ AJAX (load more)
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return render_template('_exercise_items.html', exercises=exercises)
 
-        logger.debug(f"Exercise: {ex['name']}, Images: {ex['images']}")
-    return render_template('search_exercise.html', form=form, exercises=exercises_dict)
+    # ⬇️ Normale HTML render
+    return render_template('search_exercise.html',
+                           exercises=exercises,
+                           pagination=pagination,
+                           form=form)
+
 
 @main.route('/create_workout_plan', methods=['GET', 'POST'])
 @login_required

@@ -268,7 +268,6 @@ input {
 }
 
 .question-section * {
-  width: 80%;
   max-width: 400px;
 }
 
@@ -481,12 +480,17 @@ input {
   background-color: #F2F2F2;
   border-radius: 10px;
   width: 90%;
-  padding: 40px;
+  padding: 30px;
   display: flex;
   align-items: center;
   justify-content: space-evenly;
   flex-direction: column;
   gap: 30px;
+}
+
+#load-more-btn{
+  display: block;
+  margin: 50px auto 100px;
 }
 
 .exercise-block-content {
@@ -512,8 +516,8 @@ input {
 }
 
 .exercise-block-img {
-  max-width: 100px;
-  max-height: 100px;
+  max-width: 150px;
+  max-height: 150px;
   border-radius: 10px;
   width: 90%
 }
