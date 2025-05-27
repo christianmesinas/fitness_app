@@ -200,10 +200,8 @@ class WorkoutPlan(db.Model):
     user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('user.id'), index=True)
     name: so.Mapped[str] = so.mapped_column(sa.String(100))
     created_at: so.Mapped[datetime] = so.mapped_column(default=lambda: datetime.now(timezone.utc))
-    start_date: so.Mapped[Optional[datetime]] = so.mapped_column()
-    end_date: so.Mapped[Optional[datetime]] = so.mapped_column()
     user: so.Mapped['User'] = so.relationship(back_populates='workout_plans')
-    exercises: so.WriteOnlyMapped['WorkoutPlanExercise'] = so.relationship(back_populates='workout_plan')
+    exercises: so.Mapped['WorkoutPlanExercise'] = so.relationship(back_populates='workout_plan')
 
     def __repr__(self):
         return f'<WorkoutPlan {self.name}>'
@@ -213,8 +211,6 @@ class WorkoutPlan(db.Model):
             'id': self.id,
             'name': self.name,
             'created_at': self.created_at.isoformat(),
-            'start_date': self.start_date.isoformat() if self.start_date else None,
-            'end_date': self.end_date.isoformat() if self.end_date else None,
             'user_id': self.user_id
         }
 
@@ -227,6 +223,7 @@ class WorkoutPlanExercise(db.Model):
     reps: so.Mapped[Optional[int]] = so.mapped_column()
     duration: so.Mapped[Optional[int]] = so.mapped_column()
     order: so.Mapped[int] = so.mapped_column(default=0)
+    weight: so.Mapped[Optional[float]] = so.mapped_column()
 
     workout_plan: so.Mapped['WorkoutPlan'] = so.relationship(back_populates='exercises')
     exercise: so.Mapped['Exercise'] = so.relationship()

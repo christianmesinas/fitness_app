@@ -14,6 +14,7 @@ class ExerciseForm(FlaskForm):
     sets = IntegerField('Sets', validators=[DataRequired(), NumberRange(min=1)])
     reps = IntegerField('Reps', validators=[DataRequired(), NumberRange(min=1)])
     weight = FloatField('Weight (kg)', validators=[NumberRange(min=0)])
+    order = IntegerField('Order', default=0)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -91,10 +92,14 @@ class SearchExerciseForm(FlaskForm):
 
     submit = SubmitField('Search')
 
+class SimpleWorkoutPlanForm(FlaskForm):
+    name = StringField('Plan Name', validators=[DataRequired(), Length(min=2, max=50)])
+    submit = SubmitField('Create workout')
+
 class WorkoutPlanForm(FlaskForm):
     name = StringField('Plan Name', validators=[DataRequired(), Length(min=2, max=50)])
     exercises = FieldList(FormField(ExerciseForm), min_entries=1)
-    submit = SubmitField('Create Plan')
+    submit = SubmitField('Create workout')
 
 class ExerciseLogForm(FlaskForm):
     exercise_id = SelectField('Exercise', coerce=int, validators=[DataRequired()])

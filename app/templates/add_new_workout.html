@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="top-bar">
+  <a href="{{ url_for('main.index') }}">
+    <img src="{{ url_for('static', filename='img/back.svg') }}" alt="Back">
+  </a>
+</div>
+
+<section class="header-section">
+  <form method="POST" class="add-workout-form">
+    {{ form.hidden_tag() }}
+    <div class="workout-name">
+      <h1>{{ form.name.label }}</h1>
+      {{ form.name(placeholder="Naam van workout", required=True) }}
+      {% if form.name.errors %}
+        <ul class="errors">
+          {% for error in form.name.errors %}
+            <li>{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+
+    <section class="exercise-blok-section">
+      {% if exercises %}
+        {% for exercise in exercises %}
+          <section class="active-workout-block" data-exercise-id="{{ exercise.exercise_id }}">
+            <img class="drag-drop-icon" src="{{ url_for('static', filename='img/drag-drop.svg') }}" alt="drag-and-drop">
+            <a href="#" class="setting-dots-workout" data-action="edit" data-exercise-id="{{ exercise.exercise_id }}">...</a>
+            <h2>{{ exercise.exercise.name }}</h2>
+            <section class="set-section">
+              {% for i in range(exercise.sets) %}
+                <div class="active-workout-set">
+                  <input type="number" name="reps-{{ exercise.id }}-{{ i }}" min="0" step="1" placeholder="{{ exercise.reps }} reps" value="{{ exercise.reps }}">
+                  <input type="number" name="weight-{{ exercise.id }}-{{ i }}" min="0" step="0.1" placeholder="{{ exercise.weight }} KG" value="{{ exercise.weight }}">
+                  <label class="custom-checkbox">
+                    <input type="checkbox" name="completed-{{ exercise.id }}-{{ i }}">
+                    <span class="checkmark"></span>
+                  </label>
+                </div>
+              {% endfor %}
+            </section>
+            <div class="active-workout-button-section">
+              <a href="#" class="orange-btn-outline active-workout-btn" data-action="add-set" data-exercise-id="{{ exercise.exercise_id }}">Add set</a>
+              <a href="#" class="orange-btn-outline active-workout-btn" data-action="complete-all" data-exercise-id="{{ exercise.exercise_id }}">Complete all</a>
+            </div>
+          </section>
+        {% endfor %}
+      {% else %}
+        <p>Je hebt nog geen oefeningen toegevoegd.</p>
+      {% endif %}
+      <!-- Formulier voor het toevoegen van nieuwe oefeningen -->
+      {% for exercise_form in form.exercises %}
+        <section class="active-workout-block">
+          {{ exercise_form.hidden_tag() }}
+          <div>
+            {{ exercise_form.exercise_id.label }} {{ exercise_form.exercise_id }}
+            {% if exercise_form.exercise_id.errors %}
+              <ul class="errors">
+                {% for error in exercise_form.exercise_id.errors %}
+                  <li>{{ error }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+          <div>
+            {{ exercise_form.sets.label }} {{ exercise_form.sets }}
+            {% if exercise_form.sets.errors %}
+              <ul class="errors">
+                {% for error in exercise_form.sets.errors %}
+                  <li>{{ error }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+          <div>
+            {{ exercise_form.reps.label }} {{ exercise_form.reps }}
+            {% if exercise_form.reps.errors %}
+              <ul class="errors">
+                {% for error in exercise_form.reps.errors %}
+                  <li>{{ error }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+          <div>
+            {{ exercise_form.weight.label }} {{ exercise_form.weight }}
+            {% if exercise_form.weight.errors %}
+              <ul class="errors">
+                {% for error in exercise_form.weight.errors %}
+                  <li>{{ error }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+        </section>
+      {% endfor %}
+      <a href="{{ url_for('main.search_exercise', plan_id=workout_plan.id) }}" class="second-grey-cta-btn">Add exercise</a>
+      {{ form.submit(class="orange-btn-outline add-new-workout-btn") }}
+    </form>
+  </section>
+
+  <script>
+    // Drag-and-drop functionaliteit
+    document.querySelectorAll('.active-workout-block').forEach(block => {
+      block.setAttribute('draggable', true);
+      block.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', e.target.dataset.exerciseId);
+      });
+    });
+
+    document.querySelector('.exercise-blok-section').addEventListener('dragover', (e) => {
+      e.preventDefault();
+    });
+
+    document.querySelector('.exercise-blok-section').addEventListener('drop', (e) => {
+      e.preventDefault();
+      const exerciseId = e.dataTransfer.getData('text/plain');
+      const droppedBlock = document.querySelector(`[data-exercise-id="${exerciseId}"]`);
+      const targetBlock = e.target.closest('.active-workout-block');
+      if (targetBlock && droppedBlock !== targetBlock) {
+        e.target.closest('.exercise-blok-section').insertBefore(droppedBlock, targetBlock);
+        updateExerciseOrder();
+      }
+    });
+
+    // AJAX voor het toevoegen van een set
+    document.querySelectorAll('[data-action="add-set"]').forEach(button => {
+      button.addEventListener('click', (e) => {
+        e.preventDefault();
+        const exerciseId = e.target.dataset.exerciseId;
+        fetch('/add_set', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': document.querySelector('input[name="csrf_token"]').value
+          },
+          body: JSON.stringify({ exercise_id: exerciseId, plan_id: {{ workout_plan.id }} })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            location.reload();
+          } else {
+            alert('Fout bij toevoegen van set.');
+          }
+        });
+      });
+    });
+
+    // AJAX voor het completeren van alle sets
+    document.querySelectorAll('[data-action="complete-all"]').forEach(button => {
+      button.addEventListener('click', (e) => {
+        e.preventDefault();
+        const exerciseId = e.target.dataset.exerciseId;
+        fetch('/complete_all_sets', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': document.querySelector('input[name="csrf_token"]').value
+          },
+          body: JSON.stringify({ exercise_id: exerciseId, plan_id: {{ workout_plan.id }} })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            location.reload();
+          } else {
+            alert('Fout bij completeren van sets.');
+          }
+        });
+      });
+    });
+
+    // AJAX voor het updaten van de volgorde
+    function updateExerciseOrder() {
+      const blocks = document.querySelectorAll('.active-workout-block');
+      const order = Array.from(blocks).map(block => block.dataset.exerciseId).filter(id => id);
+      fetch('/update_exercise_order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': document.querySelector('input[name="csrf_token"]').value
+        },
+        body: JSON.stringify({ plan_id: {{ workout_plan.id }}, order: order })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (!data.success) {
+          alert('Fout bij updaten van volgorde.');
+        }
+      });
+    }
+  </script>
+{% endblock %}

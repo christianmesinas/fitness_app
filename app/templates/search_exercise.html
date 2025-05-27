@@ -2,61 +2,61 @@
 {% import "bootstrap_wtf.html" as wtf %}
 
 {% block content %}
-    {% if current_user %}
-        <div class="top-bar">
-            <a href="{{ url_for('main.index') }}">
-                <img src="{{ url_for('static', filename='img/back.svg') }}" alt="Back">
-            </a>
-        </div>
+<div class="top-bar">
+    <a href="{{ url_for('main.index') }}">
+        <img src="{{ url_for('static', filename='img/back.svg') }}" alt="Back">
+    </a>
+</div>
 
-        <div class="workout-name">
-            <h1>Add exercise</h1>
-            <a href="add-exercise.html" class="create-exercise">+ Create</a>
-        </div>
+<div class="workout-name">
+    <h1>Add exercise</h1>
+</div>
 
 <form class="filter-form" method="GET" id="filter-form">
-            {{ form.hidden_tag() }}
-            <div class="form-group">
-                {{ wtf.form_field(form.difficulty) }}
-            </div>
-            <div class="form-group">
-                {{ wtf.form_field(form.mechanic) }}
-            </div>
-            <div class="form-group">
-                {{ wtf.form_field(form.exercise_type) }}
-            </div>
-            <div class="form-group">
-                {{ wtf.form_field(form.category) }}
-            </div>
-            <div class="form-group-search">
-                {{ wtf.form_field(form.search_term) }}
-            </div>
-            <div class="form-group-buttons">
-<button type="submit" class="orange-btn-outline add-new-workout-btn">{{ form.submit.label.text }}</button>
-                <a href="{{ url_for('main.search_exercise') }}" class="btn btn-secondary">Reset Filters</a>
-            </div>
-        </form>
+    {{ form.hidden_tag() }}
+    <div class="form-group">
+        {{ wtf.form_field(form.difficulty) }}
+    </div>
+    <div class="form-group">
+        {{ wtf.form_field(form.mechanic) }}
+    </div>
+    <div class="form-group">
+        {{ wtf.form_field(form.exercise_type) }}
+    </div>
+    <div class="form-group">
+        {{ wtf.form_field(form.category) }}
+    </div>
+    <div class="form-group-search">
+        {{ wtf.form_field(form.search_term) }}
+    </div>
+    <div class="form-group-buttons">
+        <button type="submit" class="orange-btn-outline add-new-workout-btn">{{ form.submit.label.text }}</button>
+        <a href="{{ url_for('main.search_exercise') }}" class="btn btn-secondary">Reset Filters</a>
+    </div>
+</form>
 
-        <section class="exercise-blok-section" id="exercise-list">
-            {% include '_exercise_items.html' %}
-        </section>
+<section class="exercise-blok-section" id="exercise-list" data-plan-id="{{ plan_id|default(0) }}">
+    {% include '_exercise_items.html' %}
+</section>
 
-        {% if pagination.has_next %}
-            <button id="load-more-btn" data-next-page="{{ pagination.next_num }}" class="btn btn-primary">Load More</button>
-        {% endif %}
 
-    {% endif %}
+{% if pagination.has_next %}
+    <button id="load-more-btn" data-next-page="{{ pagination.next_num }}" class="btn btn-primary">Load More</button>
+{% endif %}
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
+    // Log plan_id source
+    const urlParams = new URLSearchParams(window.location.search);
+    console.log("Plan ID source: URL=", urlParams.get('plan_id'), "Session=current_workout_plan_id");
+
+    // Load more functionality
     const loadMoreBtn = document.getElementById("load-more-btn");
     const exerciseList = document.getElementById("exercise-list");
 
     if (loadMoreBtn) {
         loadMoreBtn.addEventListener("click", function () {
             const nextPage = this.getAttribute("data-next-page");
-
-            // Huidige query params ophalen
             const params = new URLSearchParams(window.location.search);
             params.set('page', nextPage);
 
@@ -74,12 +74,10 @@ document.addEventListener("DOMContentLoaded", function () {
             .then(data => {
                 const tempDiv = document.createElement("div");
                 tempDiv.innerHTML = data;
-
                 Array.from(tempDiv.children).forEach(child => {
                     exerciseList.appendChild(child);
                 });
 
-                // Nieuwe page ophalen en updaten
                 const newNextPage = parseInt(nextPage) + 1;
                 params.set('page', newNextPage);
 
@@ -100,8 +98,64 @@ document.addEventListener("DOMContentLoaded", function () {
             });
         });
     }
+
+    // Add exercise to plan functionality
+    const planId = exerciseList.getAttribute('data-plan-id');
+    const csrfToken = "{{ form.csrf_token._value() }}";
+    console.log("CSRF Token:", csrfToken);
+    console.log("Plan ID:", planId);
+
+    exerciseList.addEventListener("click", function(e) {
+        if (e.target.classList.contains("add-exercise")) {
+            e.preventDefault();
+
+            const exerciseId = e.target.getAttribute("data-exercise-id");
+            if (!exerciseId || !planId) {
+                alert("Geen workout geselecteerd of ongeldige oefening.");
+                return;
+            }
+
+            console.log("Adding exercise:", { planId, exerciseId });
+
+            // Build the URL dynamically
+            const baseUrl = "{{ url_for('main.add_exercise', plan_id=0, exercise_id=0) }}";
+            const url = baseUrl.replace('/0/', `/${planId}/`).replace('/0', `/${exerciseId}`);
+
+            fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-Token": csrfToken,
+                    "X-Requested-With": "XMLHttpRequest"
+                },
+                body: JSON.stringify({ exercise_id: exerciseId, plan_id: planId })
+            })
+            .then(response => {
+                console.log("Response status:", response.status);
+                if (!response.ok) {
+                    return response.json().then(err => {
+                        throw new Error(`HTTP error! Status: ${response.status}, Message: ${err.message || 'Unknown'}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Response data:", data);
+                if (data.success) {
+                    alert("Oefening toegevoegd!");
+                    e.target.textContent = "✓";
+                    e.target.classList.add("completed");
+                    e.target.classList.add("disabled");
+                } else {
+                    alert("Kon oefening niet toevoegen: " + (data.message || "Onbekende fout"));
+                }
+            })
+            .catch(err => {
+                console.error("Fout bij toevoegen oefening:", err);
+                alert("Netwerkfout bij het toevoegen van de oefening: " + err.message);
+            });
+        }
+    });
 });
 </script>
-
-
 {% endblock %}

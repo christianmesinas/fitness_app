@@ -13,15 +13,16 @@ def check_onboarding_status(user):
 def fix_image_path(path):
     path = path.strip().strip('"').strip("'")
 
-    if not path.startswith('img/exercises/'):
-        path = f'img/exercises/{path}'
+    # Verwijder eventueel voorafgaande mappen zoals img/exercises/
+    path = re.sub(r'^(img/)?exercises/', '', path)
 
-    #getallen als folders
-    path = re.sub(r'exercises/(\d+)/(\d+_[^/]+)', r'exercises/\1_\2', path)
-    #twee tekstfolders
-    path = re.sub(r'exercises/([^/]+)/([^/]+)/(\d+\.jpg)', r'exercises/\1_\2/\3', path)
-    #verwijder haakjes
+    # getallen als folders
+    path = re.sub(r'(\d+)/(\d+_[^/]+)', r'\1_\2', path)
+    # twee tekstfolders
+    path = re.sub(r'([^/]+)/([^/]+)/(\d+\.jpg)', r'\1_\2/\3', path)
+    # verwijder haakjes
     path = re.sub(r'\(([^)]+)\)', r'\1', path)
+
     return path
 
 def clean_instruction_text(text):

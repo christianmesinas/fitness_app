@@ -1,20 +1,17 @@
 {% for exercise in exercises %}
     <section class="exercise-block">
-        <a href="{{ url_for('main.exercise_detail', exercise_id=exercise['id']) }}" class="exercise-block-link">
+        <a href="{{ url_for('main.exercise_detail', exercise_id=exercise.id) }}" class="exercise-block-link">
             <div class="exercise-block-content">
-           {% if exercise['images'] and exercise['images']|length > 0 %}
-   <img class="exercise-block-img"
-     src="{{ url_for('static', filename='img/exercises/' + exercise.images[0]) if exercise.images else url_for('static', filename='img/placeholder.png') }}"
-     alt="{{ exercise.name }}">
-
+ {% if exercise.images and exercise.images[0] %}
+<img class="exercise-block-img" src="{{ url_for('static', filename='img/exercises/' + exercise.image) }}" alt="{{ exercise.name }}">
 {% else %}
-    <img class="exercise-block-img"
-         src="{{ url_for('static', filename='img/placeholder.png') }}"
-         alt="{{ exercise['name'] }}">
+    <img class="exercise-block-img" src="/static/img/exercises/default.jpg" alt="{{ exercise.name }}">
 {% endif %}
-               <h2>{{ exercise['name'] }}</h2>
+
+
+                <h2>{{ exercise.name }}</h2>
             </div>
         </a>
-        <a href="#" class="add-exercise"> + </a>
+        <a href="#" class="add-exercise" data-exercise-id="{{ exercise.id }}">+</a>
     </section>
 {% endfor %}

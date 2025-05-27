@@ -487,7 +487,9 @@ input {
   flex-direction: column;
   gap: 30px;
 }
-
+.add-workout-form{
+  width: 100%;
+}
 #load-more-btn{
   display: block;
   margin: 50px auto 100px;

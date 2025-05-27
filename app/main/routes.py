@@ -1,10 +1,13 @@
-from flask import render_template, request, current_app, session, redirect, url_for, flash
+from authlib.integrations.flask_oauth2 import requests
+from flask import render_template, request, current_app, session, redirect, url_for, flash, jsonify, abort
 from flask_login import login_required, current_user, login_user, logout_user
 from app.forms import EditProfileForm, NameForm, SearchExerciseForm, CurrentWeightForm, WorkoutPlanForm, \
-    ExerciseLogForm, GoalWeightForm
-from app.models import Exercise
+    ExerciseLogForm, GoalWeightForm, ExerciseForm, SimpleWorkoutPlanForm
+from app.models import Exercise, WorkoutPlanExercise, WorkoutPlan, ExerciseLog
 import logging
+from flask_wtf.csrf import CSRFError
 from datetime import datetime, timezone
+from sqlalchemy import select
 
 import json
 
@@ -214,82 +217,346 @@ def profile():
         form.weekly_workouts.data = current_user.weekly_workouts
     return render_template('user.html', user=current_user)
 
-@main.route('/add_workout')
+@main.route('/add_workout', methods=['GET', 'POST'])
 @login_required
 def add_workout():
-    logger.debug(f"Add workout page geopend door {current_user.name}")
-    return render_template('add_workout.html')
-
-@main.route('/search_exercise', methods=['GET', 'POST'])
-@login_required
-def search_exercise():
-    page = request.args.get('page', 1, type=int)
-    per_page = 25
-
-    form = SearchExerciseForm(request.args)
-    query = Exercise.query
-
-    # ⬇️ Filters toepassen op de query (via GET)
-    if request.args:
-        if request.args.get('difficulty'):
-            query = query.filter(Exercise.level == request.args.get('difficulty'))
-        if request.args.get('mechanic'):
-            query = query.filter(Exercise.mechanic == request.args.get('mechanic'))
-        if request.args.get('exercise_type'):
-            query = query.filter(Exercise.equipment == request.args.get('exercise_type'))
-        if request.args.get('category'):
-            query = query.filter(Exercise.category == request.args.get('category'))
-        if request.args.get('search_term'):
-            term = request.args.get('search_term')
-            query = query.filter(Exercise.name.ilike(f"%{term}%"))
-
-    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
-    exercises = pagination.items
-
-    # ⬇️ Afbeeldingen-parsing
-    for exercise in exercises:
-        if isinstance(exercise.images, str):
-            try:
-                exercise.images = json.loads(exercise.images)
-            except json.JSONDecodeError:
-                exercise.images = []
-
-    # ⬇️ AJAX (load more)
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return render_template('_exercise_items.html', exercises=exercises)
-
-    # ⬇️ Normale HTML render
-    return render_template('search_exercise.html',
-                           exercises=exercises,
-                           pagination=pagination,
-                           form=form)
-
-
-@main.route('/create_workout_plan', methods=['GET', 'POST'])
-@login_required
-def create_workout_plan():
-    logger.debug(f"Create workout plan route, user: {current_user.name}")
-    from app import db  # Lazy import
+    logger.debug(f"Add workout route, user: {current_user.name}, user_id: {current_user.id}")
     form = WorkoutPlanForm()
+
     if form.validate_on_submit():
-        from app.models import WorkoutPlan, WorkoutPlanExercise
-        plan = WorkoutPlan(name=form.name.data, user_id=current_user.id)
-        db.session.add(plan)
-        db.session.flush()
-        for exercise_form in form.exercises:
+        new_workout = WorkoutPlan(name=form.name.data, user_id=current_user.id)
+        db.session.add(new_workout)
+        db.session.flush()  # Ensure new_workout.id is available
+
+        # Add exercises from form
+        for index, exercise_form in enumerate(form.exercises):
             plan_exercise = WorkoutPlanExercise(
-                workout_plan_id=plan.id,
+                workout_plan_id=new_workout.id,
                 exercise_id=exercise_form.exercise_id.data,
                 sets=exercise_form.sets.data,
                 reps=exercise_form.reps.data,
-                weight=exercise_form.weight.data
+                weight=exercise_form.weight.data,
+                order=index
+            )
+            db.session.add(plan_exercise)
+
+        # Add exercises from session
+        temp_exercises = session.get('temp_exercises', [])
+        logger.debug(f"Saving temp_exercises: {temp_exercises}")
+        for index, exercise_id in enumerate(temp_exercises, start=len(form.exercises)):
+            plan_exercise = WorkoutPlanExercise(
+                workout_plan_id=new_workout.id,
+                exercise_id=exercise_id,
+                sets=3,
+                reps=10,
+                weight=0.0,
+                order=index
+            )
+            db.session.add(plan_exercise)
+
+        db.session.commit()
+        session.pop('temp_exercises', None)
+        flash("Workout aangemaakt!", "success")
+        return redirect(url_for('main.edit_workout', plan_id=new_workout.id))
+
+    # For GET request: load temporary exercises from session
+    temp_exercises = session.get('temp_exercises', [])
+    logger.debug(f"Loading temp_exercises: {temp_exercises}")
+    exercises = db.session.scalars(
+        select(Exercise).filter(Exercise.id.in_(temp_exercises))
+    ).all() if temp_exercises else []
+
+    return render_template('new_workout.html', form=form, workout_plan=None, exercises=exercises)
+
+
+@main.route('/edit_workout/<int:plan_id>', methods=['GET', 'POST'])
+@login_required
+def edit_workout(plan_id):
+    logger.debug(f"Edit workout route, user: {current_user.name}, user_id: {current_user.id}, plan_id: {plan_id}")
+    workout_plan = WorkoutPlan.query.get_or_404(plan_id)
+
+    if workout_plan.user_id != current_user.id:
+        logger.error(f"Unauthorized access: user={current_user.id}, plan_user={workout_plan.user_id}")
+        flash("Je hebt geen toegang tot deze workout.", "error")
+        return redirect(url_for('main.index'))
+
+    form = WorkoutPlanForm()
+
+    if form.validate_on_submit():
+        workout_plan.name = form.name.data
+        # Remove existing exercises
+        WorkoutPlanExercise.query.filter_by(workout_plan_id=plan_id).delete()
+        # Add new exercises
+        for index, exercise_form in enumerate(form.exercises):
+            plan_exercise = WorkoutPlanExercise(
+                workout_plan_id=workout_plan.id,
+                exercise_id=exercise_form.exercise_id.data,
+                sets=exercise_form.sets.data,
+                reps=exercise_form.reps.data,
+                weight=exercise_form.weight.data,
+                order=index
             )
             db.session.add(plan_exercise)
         db.session.commit()
-        logger.debug(f"Workout plan aangemaakt: {plan.name}")
-        flash('Workout plan aangemaakt!')
-        return redirect(url_for('main.index'))
-    return render_template('create_workout_plan.html', form=form)
+        flash('Workout bijgewerkt!', "success")
+        return redirect(url_for('main.edit_workout', plan_id=plan_id))
+
+    # Load existing exercises with an explicit query
+    exercises = db.session.scalars(
+        select(WorkoutPlanExercise)
+        .filter_by(workout_plan_id=plan_id)
+        .order_by(WorkoutPlanExercise.order)
+    ).all()
+
+    # Pre-fill form for GET request
+    if request.method == 'GET':
+        form.name.data = workout_plan.name
+        form.exercises.entries = []
+        for exercise in exercises:
+            exercise_form = ExerciseForm()
+            exercise_form.exercise_id = exercise.exercise_id
+            exercise_form.sets = exercise.sets
+            exercise_form.reps = exercise.reps
+            exercise_form.weight = exercise.weight
+            exercise_form.order = exercise.order
+            form.exercises.append_entry(exercise_form)
+
+    return render_template('edit_workout.html', form=form, workout_plan=workout_plan, exercises=exercises)
+
+
+@main.route('/add_exercise/<int:plan_id>/<int:exercise_id>', methods=['POST'])
+@login_required
+def add_exercise(plan_id, exercise_id):
+    logger.debug(f"Add exercise: user={current_user.name}, user_id={current_user.id}, plan_id={plan_id}, exercise_id={exercise_id}, request_data={request.get_json()}, csrf_token={request.headers.get('X-CSRF-Token')}")
+
+    try:
+        if plan_id == 0:
+            # Store exercise in session for new workouts
+            if 'temp_exercises' not in session:
+                session['temp_exercises'] = []
+            if exercise_id not in session['temp_exercises']:
+                session['temp_exercises'].append(exercise_id)
+                session.modified = True
+                logger.debug(f"Added exercise_id={exercise_id} to session: {session['temp_exercises']}")
+            else:
+                logger.debug(f"Exercise_id={exercise_id} already in session")
+            return jsonify({'success': True, 'message': 'Exercise added to temporary workout'})
+
+        workout_plan = WorkoutPlan.query.get(plan_id)
+        if not workout_plan:
+            logger.error(f"Workout plan not found: plan_id={plan_id}")
+            return jsonify({'success': False, 'message': 'Workout plan not found'}), 404
+
+        if workout_plan.user_id != current_user.id:
+            logger.error(f"Unauthorized access: user={current_user.id}, plan_user={workout_plan.user_id}")
+            return jsonify({'success': False, 'message': 'Unauthorized access to workout plan'}), 403
+
+        exercise = Exercise.query.get(exercise_id)
+        if not exercise:
+            logger.error(f"Exercise not found: exercise_id={exercise_id}")
+            return jsonify({'success': False, 'message': 'Exercise not found'}), 404
+
+        # Check for duplicates
+        existing = WorkoutPlanExercise.query.filter_by(workout_plan_id=plan_id, exercise_id=exercise_id).first()
+        if existing:
+            logger.debug(f"Duplicate exercise: plan_id={plan_id}, exercise_id={exercise_id}")
+            return jsonify({'success': False, 'message': 'Exercise already in workout plan'}), 400
+
+        # Determine next order
+        max_order = db.session.scalars(
+            select(WorkoutPlanExercise.order)
+            .filter_by(workout_plan_id=plan_id)
+            .order_by(WorkoutPlanExercise.order.desc())
+        ).first()
+        next_order = (max_order + 1) if max_order is not None else 0
+
+        # Add new exercise
+        new_entry = WorkoutPlanExercise(
+            workout_plan_id=plan_id,
+            exercise_id=exercise_id,
+            sets=3,
+            reps=10,
+            weight=0.0,
+            order=next_order
+        )
+        db.session.add(new_entry)
+        db.session.commit()
+
+        logger.debug(f"Exercise added: plan_id={plan_id}, exercise_name={exercise.name}")
+        return jsonify({'success': True, 'message': f'{exercise.name} added to workout plan'})
+
+    except CSRFError as e:
+        logger.error(f"CSRF error: {str(e)}, received={request.headers.get('X-CSRF-Token')}")
+        return jsonify({'success': False, 'message': 'Invalid or missing CSRF token'}), 403
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error in add_exercise: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'message': f'Server error: {str(e)}'}), 500
+
+
+@main.route('/workout/<int:plan_id>/add_exercise/<int:exercise_id>', methods=['POST'])
+@login_required
+def add_exercise_to_plan(plan_id, exercise_id):
+    logger.debug(f"Add exercise to plan, user: {current_user.name}, plan_id: {plan_id}, exercise_id: {exercise_id}")
+    workout_plan = WorkoutPlan.query.get_or_404(plan_id)
+    if workout_plan.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    exercise = Exercise.query.get_or_404(exercise_id)
+
+    existing = WorkoutPlanExercise.query.filter_by(workout_plan_id=plan_id, exercise_id=exercise_id).first()
+    if existing:
+        return jsonify({'success': False, 'message': 'Exercise already in workout plan'}), 400
+
+    max_order = db.session.scalars(
+        select(WorkoutPlanExercise.order)
+        .filter_by(workout_plan_id=plan_id)
+        .order_by(WorkoutPlanExercise.order.desc())
+    ).first()
+    next_order = (max_order + 1) if max_order is not None else 0
+
+    new_entry = WorkoutPlanExercise(
+        workout_plan_id=plan_id,
+        exercise_id=exercise_id,
+        sets=3,
+        reps=10,
+        weight=0.0,
+        order=next_order
+    )
+    db.session.add(new_entry)
+    db.session.commit()
+
+    flash(f"{exercise.name} toegevoegd aan workout!", "success")
+    return jsonify({'success': True, 'message': 'Exercise added to workout plan'})
+
+
+@main.route('/add_set', methods=['POST'])
+@login_required
+def add_set():
+    data = request.get_json()
+    exercise_id = data.get('exercise_id')
+    plan_id = data.get('plan_id')
+
+    workout_plan = WorkoutPlan.query.get_or_404(plan_id)
+    if workout_plan.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    plan_exercise = WorkoutPlanExercise.query.filter_by(workout_plan_id=plan_id, exercise_id=exercise_id).first()
+    if plan_exercise:
+        plan_exercise.sets += 1
+        db.session.commit()
+        return jsonify({'success': True})
+    return jsonify({'success': False, 'error': 'Exercise not found'}), 404
+
+
+@main.route('/complete_all_sets', methods=['POST'])
+@login_required
+def complete_all_sets():
+    data = request.get_json()
+    exercise_id = data.get('exercise_id')
+    plan_id = data.get('plan_id')
+
+    workout_plan = WorkoutPlan.query.get_or_404(plan_id)
+    if workout_plan.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    plan_exercise = WorkoutPlanExercise.query.filter_by(workout_plan_id=plan_id, exercise_id=exercise_id).first()
+    if plan_exercise:
+        exercise_log = ExerciseLog(
+            user_id=current_user.id,
+            exercise_id=exercise_id,
+            workout_plan_id=plan_id,
+            sets=plan_exercise.sets,
+            reps=plan_exercise.reps,
+            weight=plan_exercise.weight,
+            completed=True,
+            completed_at=datetime.now(timezone.utc)
+        )
+        db.session.add(exercise_log)
+        db.session.commit()
+        return jsonify({'success': True})
+    return jsonify({'success': False, 'error': 'Exercise not found'}), 404
+
+
+@main.route('/update_exercise_order', methods=['POST'])
+@login_required
+def update_exercise_order():
+    data = request.get_json()
+    plan_id = data.get('plan_id')
+    order = data.get('order')
+
+    workout_plan = WorkoutPlan.query.get_or_404(plan_id)
+    if workout_plan.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    for index, exercise_id in enumerate(order):
+        plan_exercise = WorkoutPlanExercise.query.filter_by(workout_plan_id=plan_id, exercise_id=exercise_id).first()
+        if plan_exercise:
+            plan_exercise.order = index
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+
+@main.route('/search_exercise', methods=['GET'])
+@login_required
+def search_exercise():
+    form = SearchExerciseForm(request.args)
+
+    # Zorg dat er een workoutplan in de sessie zit
+    plan_id = session.get('current_workout_plan_id')
+    if not plan_id:
+        plan = WorkoutPlan(user_id=current_user.id, name="Nieuw Plan")
+        db.session.add(plan)
+        db.session.commit()
+        session['current_workout_plan_id'] = plan.id
+    else:
+        plan = WorkoutPlan.query.get(plan_id)
+
+    # Query voor oefeningen
+    query = Exercise.query
+
+    if form.validate():
+        if form.search_term.data:
+            query = query.filter(Exercise.name.ilike(f"%{form.search_term.data}%"))
+        if form.difficulty.data:
+            query = query.filter_by(difficulty=form.difficulty.data)
+        if form.mechanic.data:
+            query = query.filter_by(mechanic=form.mechanic.data)
+        if form.exercise_type.data:
+            query = query.filter_by(exercise_type=form.exercise_type.data)
+        if form.category.data:
+            query = query.filter_by(category=form.category.data)
+
+    # Paginate (optioneel)
+    page = request.args.get('page', 1, type=int)
+    pagination = query.paginate(page=page, per_page=10, error_out=False)
+    exercises = pagination.items
+
+    for exercise in exercises:
+        print("Voor fix_image_path:", exercise.images)
+        if exercise.images and exercise.images.startswith('['):
+            try:
+                images_list = json.loads(exercise.images)
+                exercise.image = fix_image_path(images_list[0])
+            except Exception as e:
+                print("JSON load error:", e)
+                exercise.image = fix_image_path(exercise.images)
+        else:
+            if exercise.image:
+                exercise.image = fix_image_path(exercise.images)
+            else:
+                exercise.image = 'default.jpg'
+        print("Na fix_image_path:", exercise.image)
+
+    return render_template(
+        'search_exercise.html',
+        form=form,
+        exercises=exercises,
+        plan_id=plan.id,
+        pagination=pagination
+    )
+
 
 @main.route('/exercise/<int:exercise_id>')
 @login_required
