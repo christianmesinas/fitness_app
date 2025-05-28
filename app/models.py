@@ -201,7 +201,7 @@ class WorkoutPlan(db.Model):
     name: so.Mapped[str] = so.mapped_column(sa.String(100))
     created_at: so.Mapped[datetime] = so.mapped_column(default=lambda: datetime.now(timezone.utc))
     user: so.Mapped['User'] = so.relationship(back_populates='workout_plans')
-    exercises: so.Mapped['WorkoutPlanExercise'] = so.relationship(back_populates='workout_plan')
+    exercises = db.relationship("WorkoutPlanExercise", backref="plan", lazy="dynamic")  # of lazy="select"
 
     def __repr__(self):
         return f'<WorkoutPlan {self.name}>'
@@ -218,7 +218,6 @@ class WorkoutPlanExercise(db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     workout_plan_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('workout_plan.id'), index=True)
     exercise_id: so.Mapped[str] = so.mapped_column(sa.ForeignKey('exercise.id'), index=True)
-    day_of_week: so.Mapped[Optional[str]] = so.mapped_column(sa.String(20))
     sets: so.Mapped[Optional[int]] = so.mapped_column()
     reps: so.Mapped[Optional[int]] = so.mapped_column()
     duration: so.Mapped[Optional[int]] = so.mapped_column()

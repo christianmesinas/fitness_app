@@ -24,25 +24,26 @@
 
     <section class="exercise-blok-section">
       {% if exercises %}
-        {% for i, exercise in enumerate(exercises) %}
+        {% for exercise in exercises %}
+          {% set i = loop.index0 %}
           <section class="active-workout-block" data-exercise-id="{{ exercise.exercise_id }}">
             <img class="drag-drop-icon" src="{{ url_for('static', filename='img/drag-drop.svg') }}" alt="drag-and-drop">
             <a href="#" class="setting-dots-workout" data-action="edit" data-exercise-id="{{ exercise.exercise_id }}">...</a>
             <h2>{{ exercise.exercise.name }}</h2>
             <section class="set-section">
-              {% for j in range(exercise.sets) %}
-                <div class="active-workout-set">
-                  <!-- Gebruik de form velden van WTForms om te binden -->
-                  {{ form.exercises[i].reps(name="reps-{}-{}".format(exercise.id, j), min=0, step=1, placeholder=exercise.reps, value=exercise.reps) }}
-{% if exercise.exercise.equipment != 'BODY_ONLY' %}
-  {{ form.exercises[i].weight(name="weight-{}-{}".format(exercise.id, j), min=0, step=0.1, placeholder=exercise.weight, value=exercise.weight) }}
-{% endif %}
-                  <label class="custom-checkbox">
-                    <input type="checkbox" name="completed-{{ exercise.id }}-{{ j }}">
-                    <span class="checkmark"></span>
-                  </label>
-                </div>
-              {% endfor %}
+       {% for j in range(exercise.sets)|list %}
+  <div class="active-workout-set">
+    {{ form.exercises[i].reps(min=0, step=1, placeholder=exercise.reps, value=exercise.reps) }}
+    {% if exercise.exercise.equipment != 'BODY_ONLY' %}
+      {{ form.exercises[i].weight(min=0, step=0.1, placeholder=exercise.weight, value=exercise.weight) }}
+    {% endif %}
+    <label class="custom-checkbox">
+      <input type="checkbox" name="completed-{{ exercise.id }}-{{ j }}">
+      <span class="checkmark"></span>
+    </label>
+  </div>
+{% endfor %}
+
             </section>
             <div class="active-workout-button-section">
               <a href="#" class="orange-btn-outline active-workout-btn" data-action="add-set" data-exercise-id="{{ exercise.exercise_id }}">Add set</a>
@@ -107,97 +108,97 @@
   </form>
 </section>
 
-  <script>
-    // Drag-and-drop functionaliteit
-    document.querySelectorAll('.active-workout-block').forEach(block => {
-      block.setAttribute('draggable', true);
-      block.addEventListener('dragstart', (e) => {
-        e.dataTransfer.setData('text/plain', e.target.dataset.exerciseId);
-      });
+<script>
+  // Drag-and-drop functionaliteit
+  document.querySelectorAll('.active-workout-block').forEach(block => {
+    block.setAttribute('draggable', true);
+    block.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/plain', e.target.dataset.exerciseId);
     });
+  });
 
-    document.querySelector('.exercise-blok-section').addEventListener('dragover', (e) => {
+  document.querySelector('.exercise-blok-section').addEventListener('dragover', (e) => {
+    e.preventDefault();
+  });
+
+  document.querySelector('.exercise-blok-section').addEventListener('drop', (e) => {
+    e.preventDefault();
+    const exerciseId = e.dataTransfer.getData('text/plain');
+    const droppedBlock = document.querySelector(`[data-exercise-id="${exerciseId}"]`);
+    const targetBlock = e.target.closest('.active-workout-block');
+    if (targetBlock && droppedBlock !== targetBlock) {
+      e.target.closest('.exercise-blok-section').insertBefore(droppedBlock, targetBlock);
+      updateExerciseOrder();
+    }
+  });
+
+  // AJAX voor het toevoegen van een set
+  document.querySelectorAll('[data-action="add-set"]').forEach(button => {
+    button.addEventListener('click', (e) => {
       e.preventDefault();
-    });
-
-    document.querySelector('.exercise-blok-section').addEventListener('drop', (e) => {
-      e.preventDefault();
-      const exerciseId = e.dataTransfer.getData('text/plain');
-      const droppedBlock = document.querySelector([data-exercise-id="${exerciseId}"]);
-      const targetBlock = e.target.closest('.active-workout-block');
-      if (targetBlock && droppedBlock !== targetBlock) {
-        e.target.closest('.exercise-blok-section').insertBefore(droppedBlock, targetBlock);
-        updateExerciseOrder();
-      }
-    });
-
-    // AJAX voor het toevoegen van een set
-    document.querySelectorAll('[data-action="add-set"]').forEach(button => {
-      button.addEventListener('click', (e) => {
-        e.preventDefault();
-        const exerciseId = e.target.dataset.exerciseId;
-        fetch('/add_set', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-Token': document.querySelector('input[name="csrf_token"]').value
-          },
-          body: JSON.stringify({ exercise_id: exerciseId, plan_id: {{ workout_plan.id }} })
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.success) {
-            location.reload();
-          } else {
-            alert('Fout bij toevoegen van set.');
-          }
-        });
-      });
-    });
-
-    // AJAX voor het completeren van alle sets
-    document.querySelectorAll('[data-action="complete-all"]').forEach(button => {
-      button.addEventListener('click', (e) => {
-        e.preventDefault();
-        const exerciseId = e.target.dataset.exerciseId;
-        fetch('/complete_all_sets', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-Token': document.querySelector('input[name="csrf_token"]').value
-          },
-          body: JSON.stringify({ exercise_id: exerciseId, plan_id: {{ workout_plan.id }} })
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.success) {
-            location.reload();
-          } else {
-            alert('Fout bij completeren van sets.');
-          }
-        });
-      });
-    });
-
-    // AJAX voor het updaten van de volgorde
-    function updateExerciseOrder() {
-      const blocks = document.querySelectorAll('.active-workout-block');
-      const order = Array.from(blocks).map(block => block.dataset.exerciseId).filter(id => id);
-      fetch('/update_exercise_order', {
+      const exerciseId = e.target.dataset.exerciseId;
+      fetch('/add_set', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-CSRF-Token': document.querySelector('input[name="csrf_token"]').value
         },
-        body: JSON.stringify({ plan_id: {{ workout_plan.id }}, order: order })
+        body: JSON.stringify({ exercise_id: exerciseId, plan_id: {{ workout_plan.id }} })
       })
       .then(response => response.json())
       .then(data => {
-        if (!data.success) {
-          alert('Fout bij updaten van volgorde.');
+        if (data.success) {
+          location.reload();
+        } else {
+          alert('Fout bij toevoegen van set.');
         }
       });
-    }
-  </script>
+    });
+  });
+
+  // AJAX voor het completeren van alle sets
+  document.querySelectorAll('[data-action="complete-all"]').forEach(button => {
+    button.addEventListener('click', (e) => {
+      e.preventDefault();
+      const exerciseId = e.target.dataset.exerciseId;
+      fetch('/complete_all_sets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': document.querySelector('input[name="csrf_token"]').value
+        },
+        body: JSON.stringify({ exercise_id: exerciseId, plan_id: {{ workout_plan.id }} })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          location.reload();
+        } else {
+          alert('Fout bij completeren van sets.');
+        }
+      });
+    });
+  });
+
+  // AJAX voor het updaten van de volgorde
+  function updateExerciseOrder() {
+    const blocks = document.querySelectorAll('.active-workout-block');
+    const order = Array.from(blocks).map(block => block.dataset.exerciseId).filter(id => id);
+    fetch('/update_exercise_order', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': document.querySelector('input[name="csrf_token"]').value
+      },
+      body: JSON.stringify({ plan_id: {{ workout_plan.id }}, order: order })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (!data.success) {
+        alert('Fout bij updaten van volgorde.');
+      }
+    });
+  }
+</script>
 
 {% endblock %}

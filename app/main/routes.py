@@ -217,6 +217,27 @@ def profile():
         form.weekly_workouts.data = current_user.weekly_workouts
     return render_template('user.html', user=current_user)
 
+
+@main.route('/add_exercise_to_plan/<int:plan_id>', methods=['POST'])
+@login_required
+def add_exercise_to_plan(plan_id):
+    exercise_id = request.form['exercise_id']
+
+    new_exercise = WorkoutPlanExercise(
+        workout_plan_id=plan_id,
+        exercise_id=exercise_id,
+        sets=3,
+        reps=10,
+        weight=20,
+        order=0
+    )
+    db.session.add(new_exercise)
+    db.session.commit()
+    flash('Oefening toegevoegd.')
+    return redirect(url_for('main.add_workout'))
+
+
+
 @main.route('/add_workout', methods=['GET', 'POST'])
 @login_required
 def add_workout():
@@ -266,7 +287,10 @@ def add_workout():
         select(Exercise).filter(Exercise.id.in_(temp_exercises))
     ).all() if temp_exercises else []
 
-    return render_template('new_workout.html', form=form, workout_plan=None, exercises=exercises)
+    existing_plans = WorkoutPlan.query.filter_by(user_id=current_user.id).order_by(WorkoutPlan.created_at.desc()).all()
+
+
+    return render_template('new_workout.html', form=form, plan=None, workout_plan=None, exercises=exercises, existing_plans=existing_plans)
 
 
 @main.route('/edit_workout/<int:plan_id>', methods=['GET', 'POST'])
@@ -396,7 +420,7 @@ def add_exercise(plan_id, exercise_id):
 
 @main.route('/workout/<int:plan_id>/add_exercise/<int:exercise_id>', methods=['POST'])
 @login_required
-def add_exercise_to_plan(plan_id, exercise_id):
+def add_exercise_to_workout(plan_id, exercise_id):
     logger.debug(f"Add exercise to plan, user: {current_user.name}, plan_id: {plan_id}, exercise_id: {exercise_id}")
     workout_plan = WorkoutPlan.query.get_or_404(plan_id)
     if workout_plan.user_id != current_user.id:

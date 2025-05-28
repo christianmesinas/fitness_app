@@ -101,6 +101,37 @@
             {{ form.submit(class="orange-btn-outline add-new-workout-btn") }}
         </section>
     </form>
+<section class="existing-workouts">
+    <h2>Jouw bestaande workouts</h2>
+
+    {% if existing_plans %}
+        {% for plan in existing_plans %}
+            <div class="plan-block" style="border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 10px;">
+                <h3>{{ plan.name }}</h3>
+                <p><strong>Aangemaakt op:</strong> {{ plan.created_at.strftime('%d-%m-%Y') }}</p>
+
+                {% if plan.exercises %}
+                    <ul>
+                        {% for pe in plan.exercises %}
+                            <li>
+                                <strong>{{ pe.exercise.name }}</strong> —
+                                Sets: {{ pe.sets }},
+                                Reps: {{ pe.reps }},
+                                Gewicht: {{ pe.weight or 0 }} kg
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p><em>Geen oefeningen toegevoegd aan dit plan.</em></p>
+                {% endif %}
+
+                <a href="{{ url_for('main.edit_workout', plan_id=plan.id) }}" class="orange-btn-outline">Bewerk dit plan</a>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>Je hebt nog geen eerdere workoutplannen.</p>
+    {% endif %}
+</section>
 </section>
 
 <script>
