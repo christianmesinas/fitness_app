@@ -19,21 +19,38 @@
             </section>
         </section>
 
-        <section class="workout-blok-section">
-            {% for post in posts %}
-                <section class="workout-block">
-                    <h2>{{ post.title }}</h2>
-                    <a href="#" class="orange-btn workout-start-btn">Start</a>
-                    <a href="#" class="setting-dots-workout">...</a>
-                </section>
-            {% endfor %}
 
-<a href="{{ url_for('main.add_workout') }}" class="orange-btn-outline add-new-workout-btn home-btn">Add new workout</a>
+     <section class="workout-blok-section">
+    {% for workout in workout_plan %}
+        <section class="workout-block">
+            <h2>{{ workout.name }}</h2>
+            <a href="#" class="orange-btn workout-start-btn">Start</a>
+<div class="setting-dots-wrapper">
+        <a href="#" class="setting-dots-workout">...</a>
+
+        <div class="settings-menu">
+<a href="{{ url_for('main.edit_workout', plan_id=workout.id, workout_id=workout.id) }}">Bewerk workout</a>
+<form method="POST" action="{{ url_for('main.delete_workout', workout_id=workout.id) }}">
+    {{ delete_form.csrf_token }}
+    <button type="submit">Verwijder workout</button>
+</form>
+
+
+        </div>
+    </div>
         </section>
+    {% else %}
+        <p>Er zijn nog geen oefeningen in je huidige plan.</p>
+    {% endfor %}
+
+    <a href="{{ url_for('main.add_workout') }}" class="orange-btn-outline add-new-workout-btn home-btn">Add new workout</a>
+</section>
+
 
     {% else %}
-        {% if form %}
-            {{ wtf.quick_form(form) }}
-        {% endif %}
+            <p>je bent niet ingelogd</p>
     {% endif %}
+
+        <script src="{{ url_for('static', filename='js/menu.js') }}" defer></script>
+
 {% endblock %}

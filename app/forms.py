@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms import FieldList, FormField, StringField, FloatField, SelectField, IntegerField, SubmitField, ValidationError
-from wtforms.validators import DataRequired, Length, NumberRange
+from wtforms.validators import DataRequired, Length, NumberRange, Optional
 from wtforms.widgets import Input
 
 
@@ -11,15 +11,18 @@ class RangeInput(Input):
 
 class ExerciseForm(FlaskForm):
     exercise_id = SelectField('Exercise', coerce=int, validators=[DataRequired()])
-    sets = IntegerField('Sets', validators=[DataRequired(), NumberRange(min=1)])
-    reps = IntegerField('Reps', validators=[DataRequired(), NumberRange(min=1)])
-    weight = FloatField('Weight (kg)', validators=[NumberRange(min=0)])
+    sets = IntegerField('Sets', validators=[Optional(), NumberRange(min=0)])
+    reps = IntegerField('Reps', validators=[Optional(), NumberRange(min=0)])
+    weight = FloatField('Weight (kg)', validators=[Optional(), NumberRange(min=0)])
     order = IntegerField('Order', default=0)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         from app.models import Exercise
         self.exercise_id.choices = [(e.id, e.name) for e in Exercise.query.all()]
+
+    class Meta:
+        csrf = False  # Dit schakelt CSRF uit voor dit subformulier
 
 class EditProfileForm(FlaskForm):
     name = StringField('Name', validators=[DataRequired(), Length(min=4, max=20)])
@@ -112,3 +115,6 @@ class ExerciseLogForm(FlaskForm):
         super().__init__(*args, **kwargs)
         from app.models import Exercise
         self.exercise_id.choices = [(e.id, e.name) for e in Exercise.query.all()]
+
+class DeleteWorkoutForm(FlaskForm):
+    pass

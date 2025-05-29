@@ -74,8 +74,21 @@ class User(db.Model):
     weekly_workouts: so.Mapped[Optional[int]] = so.mapped_column()
     registration_step: so.Mapped[Optional[str]] = so.mapped_column(sa.String(20), default='name')
 
-    workout_plans: so.WriteOnlyMapped['WorkoutPlan'] = so.relationship(back_populates='user', cascade="all, delete-orphan")
     exercise_logs: so.WriteOnlyMapped['ExerciseLog'] = so.relationship(back_populates='user', cascade="all, delete-orphan")
+    # Verwijzing naar alle plannen van deze gebruiker
+    workout_plans: so.WriteOnlyMapped['WorkoutPlan'] = so.relationship(
+        back_populates='user',
+        cascade="all, delete-orphan",
+        foreign_keys='WorkoutPlan.user_id'
+    )
+
+    # Actieve workout plan
+    current_workout_plan_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey('workout_plan.id'))
+    current_workout_plan: so.Mapped[Optional['WorkoutPlan']] = so.relationship(
+        'WorkoutPlan',
+        foreign_keys=[current_workout_plan_id],
+        post_update=True
+    )
 
     @property
     def is_active(self):
@@ -200,8 +213,11 @@ class WorkoutPlan(db.Model):
     user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('user.id'), index=True)
     name: so.Mapped[str] = so.mapped_column(sa.String(100))
     created_at: so.Mapped[datetime] = so.mapped_column(default=lambda: datetime.now(timezone.utc))
-    user: so.Mapped['User'] = so.relationship(back_populates='workout_plans')
-    exercises = db.relationship("WorkoutPlanExercise", backref="plan", lazy="dynamic")  # of lazy="select"
+    user: so.Mapped['User'] = so.relationship(
+        back_populates='workout_plans',
+        foreign_keys=[user_id]
+    )
+    exercises = db.relationship("WorkoutPlanExercise", back_populates="workout_plan", lazy="dynamic")
 
     def __repr__(self):
         return f'<WorkoutPlan {self.name}>'
@@ -224,7 +240,7 @@ class WorkoutPlanExercise(db.Model):
     order: so.Mapped[int] = so.mapped_column(default=0)
     weight: so.Mapped[Optional[float]] = so.mapped_column()
 
-    workout_plan: so.Mapped['WorkoutPlan'] = so.relationship(back_populates='exercises')
+    workout_plan = so.relationship("WorkoutPlan", back_populates="exercises")
     exercise: so.Mapped['Exercise'] = so.relationship()
 
     def __repr__(self):

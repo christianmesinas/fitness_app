@@ -2,7 +2,7 @@ from authlib.integrations.flask_oauth2 import requests
 from flask import render_template, request, current_app, session, redirect, url_for, flash, jsonify, abort
 from flask_login import login_required, current_user, login_user, logout_user
 from app.forms import EditProfileForm, NameForm, SearchExerciseForm, CurrentWeightForm, WorkoutPlanForm, \
-    ExerciseLogForm, GoalWeightForm, ExerciseForm, SimpleWorkoutPlanForm
+    ExerciseLogForm, GoalWeightForm, ExerciseForm, SimpleWorkoutPlanForm, DeleteWorkoutForm
 from app.models import Exercise, WorkoutPlanExercise, WorkoutPlan, ExerciseLog
 import logging
 from flask_wtf.csrf import CSRFError
@@ -18,6 +18,9 @@ from ..models import User
 
 logger = logging.getLogger(__name__)
 logger.debug("Start van routes.py")
+
+logging.basicConfig(level=logging.DEBUG)
+
 
 # De blueprint wordt geïmporteerd vanuit main/__init__.py
 from . import bp as main
@@ -52,7 +55,13 @@ def index():
         logger.debug(f"Redirect naar onboarding-stap: {onboarding_redirect}")
         return redirect(onboarding_redirect)
 
-    return render_template('index.html')
+    workout_plans = WorkoutPlan.query.filter_by(user_id=current_user.id).all()
+    exercises = []
+    for plan in workout_plans:
+        exercises += [entry.exercise for entry in plan.exercises.order_by(WorkoutPlanExercise.order).all()]
+    delete_form = DeleteWorkoutForm()
+
+    return render_template('index.html', exercises=exercises, workout_plan=workout_plans, delete_form=delete_form )
 
 
 @main.route('/login')
@@ -275,6 +284,8 @@ def add_workout():
             )
             db.session.add(plan_exercise)
 
+        current_user.current_workout_plan = new_workout
+
         db.session.commit()
         session.pop('temp_exercises', None)
         flash("Workout aangemaakt!", "success")
@@ -296,56 +307,58 @@ def add_workout():
 @main.route('/edit_workout/<int:plan_id>', methods=['GET', 'POST'])
 @login_required
 def edit_workout(plan_id):
-    logger.debug(f"Edit workout route, user: {current_user.name}, user_id: {current_user.id}, plan_id: {plan_id}")
     workout_plan = WorkoutPlan.query.get_or_404(plan_id)
-
     if workout_plan.user_id != current_user.id:
-        logger.error(f"Unauthorized access: user={current_user.id}, plan_user={workout_plan.user_id}")
         flash("Je hebt geen toegang tot deze workout.", "error")
         return redirect(url_for('main.index'))
 
-    form = WorkoutPlanForm()
+    form = WorkoutPlanForm(obj=workout_plan)
 
-    if form.validate_on_submit():
+    # Kies de keuzes voor de exercises in elk subformulier
+    for exercise_form in form.exercises:
+        exercise_form.exercise_id.choices = [(ex.id, ex.name) for ex in Exercise.query.all()]
+
+    if form.validate_on_submit():  # dit controleert dat het POST is én valideert
+        # werk workout_plan bij
         workout_plan.name = form.name.data
-        # Remove existing exercises
+
+        # Vervang exercises
         WorkoutPlanExercise.query.filter_by(workout_plan_id=plan_id).delete()
-        # Add new exercises
-        for index, exercise_form in enumerate(form.exercises):
+        for idx, exercise_form in enumerate(form.exercises):
             plan_exercise = WorkoutPlanExercise(
                 workout_plan_id=workout_plan.id,
                 exercise_id=exercise_form.exercise_id.data,
                 sets=exercise_form.sets.data,
                 reps=exercise_form.reps.data,
                 weight=exercise_form.weight.data,
-                order=index
+                order=idx
             )
             db.session.add(plan_exercise)
-        db.session.commit()
-        flash('Workout bijgewerkt!', "success")
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            flash('Er is iets fout gegaan bij het opslaan.', 'error')
+            return render_template('edit_workout.html', form=form, workout_plan=workout_plan)
+
+        flash('Workout bijgewerkt!', 'success')
         return redirect(url_for('main.edit_workout', plan_id=plan_id))
 
-    # Load existing exercises with an explicit query
-    exercises = db.session.scalars(
-        select(WorkoutPlanExercise)
-        .filter_by(workout_plan_id=plan_id)
-        .order_by(WorkoutPlanExercise.order)
-    ).all()
-
-    # Pre-fill form for GET request
+    # Voor GET of niet geldige POST
     if request.method == 'GET':
-        form.name.data = workout_plan.name
+        # Vul form.exercises met data uit de DB
         form.exercises.entries = []
+        exercises = WorkoutPlanExercise.query.filter_by(workout_plan_id=plan_id).order_by(WorkoutPlanExercise.order).all()
         for exercise in exercises:
-            exercise_form = ExerciseForm()
-            exercise_form.exercise_id = exercise.exercise_id
-            exercise_form.sets = exercise.sets
-            exercise_form.reps = exercise.reps
-            exercise_form.weight = exercise.weight
-            exercise_form.order = exercise.order
-            form.exercises.append_entry(exercise_form)
+            form.exercises.append_entry({
+                'exercise_id': exercise.exercise_id,
+                'sets': exercise.sets,
+                'reps': exercise.reps,
+                'weight': exercise.weight,
+                'order': exercise.order
+            })
 
-    return render_template('edit_workout.html', form=form, workout_plan=workout_plan, exercises=exercises)
+    return render_template('edit_workout.html', form=form, workout_plan=workout_plan)
 
 
 @main.route('/add_exercise/<int:plan_id>/<int:exercise_id>', methods=['POST'])
@@ -454,6 +467,28 @@ def add_exercise_to_workout(plan_id, exercise_id):
     return jsonify({'success': True, 'message': 'Exercise added to workout plan'})
 
 
+@main.route('/workout/<int:workout_id>/delete', methods=['POST'])
+@login_required
+def delete_workout(workout_id):
+    workout = WorkoutPlan.query.get_or_404(workout_id)
+
+    if workout.user_id != current_user.id:
+        flash("Je mag alleen je eigen workouts verwijderen.", "danger")
+        return redirect(url_for('main.index'))
+
+    # Verwijder expliciet de relaties (associatie-objecten)
+    WorkoutPlanExercise.query.filter_by(workout_plan_id=workout.id).delete()
+
+    db.session.delete(workout)
+    db.session.commit()
+
+    flash("Workout succesvol verwijderd.", "success")
+    return redirect(url_for('main.index'))
+
+
+
+
+
 @main.route('/add_set', methods=['POST'])
 @login_required
 def add_set():
@@ -536,6 +571,12 @@ def search_exercise():
         session['current_workout_plan_id'] = plan.id
     else:
         plan = WorkoutPlan.query.get(plan_id)
+        if not plan:
+            # Als het plan niet meer bestaat, maak een nieuwe aan
+            plan = WorkoutPlan(user_id=current_user.id, name="Nieuw Plan")
+            db.session.add(plan)
+            db.session.commit()
+            session['current_workout_plan_id'] = plan.id
 
     # Query voor oefeningen
     query = Exercise.query
@@ -621,26 +662,3 @@ def exercise_detail(exercise_id):
     logger.debug(f"Images in exercise_dict: {exercise_dict['images']}")
     return render_template('exercise_detail.html', exercise=exercise_dict)
 
-
-@main.route('/log_exercise', methods=['GET', 'POST'])
-@login_required
-def log_exercise():
-    logger.debug(f"Log exercise route, user: {current_user.name}")
-    from app import db  # Lazy import
-    form = ExerciseLogForm()
-    if form.validate_on_submit():
-        from app.models import ExerciseLog
-        log = ExerciseLog(
-            user_id=current_user.id,
-            exercise_id=form.exercise_id.data,
-            sets=form.sets.data,
-            reps=form.reps.data,
-            weight=form.weight.data,
-            date=datetime.now(timezone.utc)
-        )
-        db.session.add(log)
-        db.session.commit()
-        logger.debug(f"Oefening gelogd: {form.exercise_id.data}")
-        flash('Oefening gelogd!')
-        return redirect(url_for('main.index'))
-    return render_template('log_exercise.html', form=form)

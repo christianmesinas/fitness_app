@@ -6,6 +6,7 @@ from flask_login import LoginManager
 from flask_moment import Moment
 from flask_session import Session
 from authlib.integrations.flask_client import OAuth
+from flask_wtf import CSRFProtect
 from config import Config
 
 logger = logging.getLogger(__name__)
@@ -15,6 +16,8 @@ migrate = Migrate()
 login = LoginManager()
 moment = Moment()
 oauth = OAuth()
+csrf = CSRFProtect()
+
 
 @login.user_loader
 def load_user(user_id):
@@ -38,7 +41,12 @@ def create_app(config_class=Config):
     app.config.from_object(config_class)
 
     app.config['SESSION_TYPE'] = 'filesystem'  # <<< BELANGRIJK
+    app.config['SESSION_FILE_DIR'] = '/tmp/flask_session'
+
     Session(app)
+
+    csrf.init_app(app)
+
 
     db.init_app(app)
     migrate.init_app(app, db)

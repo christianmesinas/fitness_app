@@ -8,8 +8,9 @@
 </div>
 
 <section class="header-section">
-  <form method="POST" class="add-workout-form">
-    {{ form.hidden_tag() }}
+<form method="POST" action="{{ url_for('main.edit_workout', plan_id=workout_plan.id) }}" class="add-workout-form">
+    {{ form.hidden_tag() }}  {# Voegt CSRF-token en verborgen velden toe #}
+
     <div class="workout-name">
       <h1>{{ form.name.label }}</h1>
       {{ form.name(placeholder="Naam van workout", required=True) }}
@@ -23,31 +24,33 @@
     </div>
 
     <section class="exercise-blok-section">
-      {% if exercises %}
-        {% for exercise in exercises %}
-          {% set i = loop.index0 %}
-          <section class="active-workout-block" data-exercise-id="{{ exercise.exercise_id }}">
+      {% if form.exercises %}
+        {% for exercise_form in form.exercises %}
+          <section class="active-workout-block" data-exercise-id="{{ exercise_form.exercise_id.data }}">
             <img class="drag-drop-icon" src="{{ url_for('static', filename='img/drag-drop.svg') }}" alt="drag-and-drop">
-            <a href="#" class="setting-dots-workout" data-action="edit" data-exercise-id="{{ exercise.exercise_id }}">...</a>
-            <h2>{{ exercise.exercise.name }}</h2>
+            <a href="#" class="setting-dots-workout" data-action="edit" data-exercise-id="{{ exercise_form.exercise_id.data }}">...</a>
+            <h2>
+              {# Haal de oefeningnaam op uit de choices #}
+              {% set exercise_name = exercise_form.exercise_id.choices | selectattr("0", "equalto", exercise_form.exercise_id.data) | map(attribute="1") | first %}
+              {{ exercise_name or "Onbekende oefening" }}
+            </h2>
             <section class="set-section">
-       {% for j in range(exercise.sets)|list %}
-  <div class="active-workout-set">
-    {{ form.exercises[i].reps(min=0, step=1, placeholder=exercise.reps, value=exercise.reps) }}
-    {% if exercise.exercise.equipment != 'BODY_ONLY' %}
-      {{ form.exercises[i].weight(min=0, step=0.1, placeholder=exercise.weight, value=exercise.weight) }}
-    {% endif %}
-    <label class="custom-checkbox">
-      <input type="checkbox" name="completed-{{ exercise.id }}-{{ j }}">
-      <span class="checkmark"></span>
-    </label>
-  </div>
-{% endfor %}
-
+              {% for i in range(exercise_form.sets.data or 0) %}
+                <div class="active-workout-set">
+                  {{ exercise_form.reps(min=0, step=1, placeholder="Reps", value=exercise_form.reps.data) }}
+                  {% if exercise_name and 'BODY_ONLY' not in exercise_name %}
+                    {{ exercise_form.weight(min=0, step=0.1, placeholder="Gewicht", value=exercise_form.weight.data) }}
+                  {% endif %}
+                  <label class="custom-checkbox">
+                    <input type="checkbox" name="completed-{{ exercise_form.exercise_id.data }}-{{ i }}">
+                    <span class="checkmark"></span>
+                  </label>
+                </div>
+              {% endfor %}
             </section>
             <div class="active-workout-button-section">
-              <a href="#" class="orange-btn-outline active-workout-btn" data-action="add-set" data-exercise-id="{{ exercise.exercise_id }}">Add set</a>
-              <a href="#" class="orange-btn-outline active-workout-btn" data-action="complete-all" data-exercise-id="{{ exercise.exercise_id }}">Complete all</a>
+              <a href="#" class="orange-btn-outline active-workout-btn" data-action="add-set" data-exercise-id="{{ exercise_form.exercise_id.data }}">Add set</a>
+              <a href="#" class="orange-btn-outline active-workout-btn" data-action="complete-all" data-exercise-id="{{ exercise_form.exercise_id.data }}">Complete all</a>
             </div>
           </section>
         {% endfor %}
@@ -55,60 +58,25 @@
         <p>Je hebt nog geen oefeningen toegevoegd.</p>
       {% endif %}
 
-      <!-- Formulier voor nieuwe oefeningen (bijv. lege velden of velden voor extra invoer) -->
-      {% for exercise_form in form.exercises %}
-        <section class="active-workout-block">
-          {{ exercise_form.hidden_tag() }}
-          <div>
-            {{ exercise_form.exercise_id.label }} {{ exercise_form.exercise_id(class="form-control") }}
-            {% if exercise_form.exercise_id.errors %}
-              <ul class="errors">
-                {% for error in exercise_form.exercise_id.errors %}
-                  <li>{{ error }}</li>
-                {% endfor %}
-              </ul>
-            {% endif %}
-          </div>
-          <div>
-            {{ exercise_form.sets.label }} {{ exercise_form.sets(class="form-control") }}
-            {% if exercise_form.sets.errors %}
-              <ul class="errors">
-                {% for error in exercise_form.sets.errors %}
-                  <li>{{ error }}</li>
-                {% endfor %}
-              </ul>
-            {% endif %}
-          </div>
-          <div>
-            {{ exercise_form.reps.label }} {{ exercise_form.reps(class="form-control") }}
-            {% if exercise_form.reps.errors %}
-              <ul class="errors">
-                {% for error in exercise_form.reps.errors %}
-                  <li>{{ error }}</li>
-                {% endfor %}
-              </ul>
-            {% endif %}
-          </div>
-          <div>
-            {{ exercise_form.weight.label }} {{ exercise_form.weight(class="form-control") }}
-            {% if exercise_form.weight.errors %}
-              <ul class="errors">
-                {% for error in exercise_form.weight.errors %}
-                  <li>{{ error }}</li>
-                {% endfor %}
-              </ul>
-            {% endif %}
-          </div>
-        </section>
-      {% endfor %}
-
       <a href="{{ url_for('main.search_exercise', plan_id=workout_plan.id) }}" class="second-grey-cta-btn">Add exercise</a>
-      {{ form.submit(class="orange-btn-outline add-new-workout-btn") }}
+      {{ form.submit(value="Update workout", class="orange-btn-outline add-new-workout-btn") }}
     </section>
   </form>
 </section>
 
 <script>
+
+document.addEventListener("DOMContentLoaded", function () {
+  const csrfInput = document.querySelector('input[name="csrf_token"]');
+  if (!csrfInput) {
+    console.error("CSRF-token input niet gevonden!");
+  } else {
+    console.log("CSRF-token gevonden:", csrfInput.value);
+  }
+
+  // Haal CSRF-token uit het verborgen inputveld
+  const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
   // Drag-and-drop functionaliteit
   document.querySelectorAll('.active-workout-block').forEach(block => {
     block.setAttribute('draggable', true);
@@ -141,7 +109,7 @@
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-Token': document.querySelector('input[name="csrf_token"]').value
+          'X-CSRFToken': csrfToken
         },
         body: JSON.stringify({ exercise_id: exerciseId, plan_id: {{ workout_plan.id }} })
       })
@@ -165,7 +133,7 @@
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-Token': document.querySelector('input[name="csrf_token"]').value
+          'X-CSRFToken': csrfToken
         },
         body: JSON.stringify({ exercise_id: exerciseId, plan_id: {{ workout_plan.id }} })
       })
@@ -188,7 +156,7 @@
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRF-Token': document.querySelector('input[name="csrf_token"]').value
+        'X-CSRFToken': csrfToken
       },
       body: JSON.stringify({ plan_id: {{ workout_plan.id }}, order: order })
     })
@@ -199,6 +167,8 @@
       }
     });
   }
-</script>
 
+  });
+
+</script>
 {% endblock %}

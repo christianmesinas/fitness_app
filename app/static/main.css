@@ -881,3 +881,30 @@ select {
   margin: auto;
   max-width: 700px;
 }
+
+.setting-dots-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.settings-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    background-color: white;
+    border: 1px solid #ccc;
+    min-width: 150px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    z-index: 100;
+}
+
+.settings-menu a {
+    display: block;
+    padding: 8px 12px;
+    color: #333;
+    text-decoration: none;
+}
+
+.settings-menu a:hover {
+    background-color: #f0f0f0;
+}
