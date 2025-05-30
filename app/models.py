@@ -5,6 +5,21 @@ import sqlalchemy.orm as so
 from datetime import datetime, timezone
 from typing import Optional
 from app import db
+from sqlalchemy.types import TypeDecorator, TEXT
+
+
+class JSONEncodedList(TypeDecorator):
+    impl = TEXT
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return '[]'
+        return json.dumps(value)
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return []
+        return json.loads(value)
 
 class ExperienceLevel(str, Enum):
     BEGINNER = "beginner"
@@ -176,13 +191,20 @@ class Exercise(db.Model):
     def __repr__(self):
         return f'<Exercise {self.name}>'
 
-    def to_dict(self):
+    @property
+    def images_list(self):
         try:
-            image_list = json.loads(self.images) if self.images else []
+            return json.loads(self.images) if self.images else []
         except json.JSONDecodeError:
-            image_list = []
+            return []
 
-        # Zorg dat het pad het juiste prefix heeft
+    @images_list.setter
+    def images_list(self, value):
+        self.images = json.dumps(value)
+
+    def to_dict(self):
+        image_list = self.images_list  # gebruikt je property, clean en DRY
+
         fixed_images = []
         for img_path in image_list:
             if not img_path.startswith("img/exercises/"):
@@ -206,7 +228,6 @@ class Exercise(db.Model):
             'category': self.category,
             'images': fixed_images
         }
-
 
 class WorkoutPlan(db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)

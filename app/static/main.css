@@ -908,3 +908,36 @@ select {
 .settings-menu a:hover {
     background-color: #f0f0f0;
 }
+
+.add-workout-blok{
+  display: block;
+}
+
+.exercise-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.exercise-details .form-group {
+  flex: 1;
+  min-width: 120px;
+}
+
+.exercise-details .form-control {
+  width: 100%;
+  padding: 5px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.exercise-details label {
+  font-weight: bold;
+  margin-bottom: 5px;
+  display: block;
+}
+
+.displayNone{
+  display: none;
+}

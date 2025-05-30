@@ -32,6 +32,7 @@
     <div class="form-group-buttons">
         <button type="submit" class="orange-btn-outline add-new-workout-btn">{{ form.submit.label.text }}</button>
         <a href="{{ url_for('main.search_exercise') }}" class="btn btn-secondary">Reset Filters</a>
+        <a href="{{ url_for('main.edit_workout', plan_id=plan_id|default(0)) }}" class="btn btn-secondary">Terug naar Workout</a>
     </div>
 </form>
 
@@ -39,20 +40,16 @@
     {% include '_exercise_items.html' %}
 </section>
 
-
 {% if pagination.has_next %}
     <button id="load-more-btn" data-next-page="{{ pagination.next_num }}" class="btn btn-primary">Load More</button>
 {% endif %}
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-    // Log plan_id source
-    const urlParams = new URLSearchParams(window.location.search);
-    console.log("Plan ID source: URL=", urlParams.get('plan_id'), "Session=current_workout_plan_id");
-
-    // Load more functionality
     const loadMoreBtn = document.getElementById("load-more-btn");
     const exerciseList = document.getElementById("exercise-list");
+    const planId = exerciseList.getAttribute('data-plan-id');
+    const csrfToken = "{{ form.csrf_token._value() }}";
 
     if (loadMoreBtn) {
         loadMoreBtn.addEventListener("click", function () {
@@ -65,33 +62,22 @@ document.addEventListener("DOMContentLoaded", function () {
                     "X-Requested-With": "XMLHttpRequest"
                 }
             })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error("Netwerkfout bij ophalen oefeningen");
-                }
-                return response.text();
-            })
+            .then(response => response.text())
             .then(data => {
+                if (!data.trim()) {
+                    loadMoreBtn.style.display = 'none';
+                    return;
+                }
+
                 const tempDiv = document.createElement("div");
                 tempDiv.innerHTML = data;
                 Array.from(tempDiv.children).forEach(child => {
                     exerciseList.appendChild(child);
                 });
 
+                // Volgende pagina bijwerken
                 const newNextPage = parseInt(nextPage) + 1;
-                params.set('page', newNextPage);
-
-                fetch(`{{ url_for('main.search_exercise') }}?${params.toString()}`, {
-                    headers: { "X-Requested-With": "XMLHttpRequest" }
-                })
-                .then(res => res.text())
-                .then(content => {
-                    if (!content.trim()) {
-                        loadMoreBtn.style.display = 'none';
-                    } else {
-                        loadMoreBtn.setAttribute("data-next-page", newNextPage);
-                    }
-                });
+                this.setAttribute("data-next-page", newNextPage);
             })
             .catch(error => {
                 console.error("Fout bij laden van oefeningen:", error);
@@ -99,25 +85,18 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // Add exercise to plan functionality
-    const planId = exerciseList.getAttribute('data-plan-id');
-    const csrfToken = "{{ form.csrf_token._value() }}";
-    console.log("CSRF Token:", csrfToken);
-    console.log("Plan ID:", planId);
-
+    // Add exercise to plan
     exerciseList.addEventListener("click", function(e) {
         if (e.target.classList.contains("add-exercise")) {
             e.preventDefault();
 
             const exerciseId = e.target.getAttribute("data-exercise-id");
+            const nextUrl = e.target.getAttribute("data-next");
             if (!exerciseId || !planId) {
                 alert("Geen workout geselecteerd of ongeldige oefening.");
                 return;
             }
 
-            console.log("Adding exercise:", { planId, exerciseId });
-
-            // Build the URL dynamically
             const baseUrl = "{{ url_for('main.add_exercise', plan_id=0, exercise_id=0) }}";
             const url = baseUrl.replace('/0/', `/${planId}/`).replace('/0', `/${exerciseId}`);
 
@@ -128,31 +107,28 @@ document.addEventListener("DOMContentLoaded", function () {
                     "X-CSRF-Token": csrfToken,
                     "X-Requested-With": "XMLHttpRequest"
                 },
-                body: JSON.stringify({ exercise_id: exerciseId, plan_id: planId })
+                body: JSON.stringify({ exercise_id: exerciseId, plan_id: planId, next: nextUrl })
             })
             .then(response => {
-                console.log("Response status:", response.status);
                 if (!response.ok) {
                     return response.json().then(err => {
-                        throw new Error(`HTTP error! Status: ${response.status}, Message: ${err.message || 'Unknown'}`);
+                        throw new Error(err.message || 'Onbekende fout');
                     });
                 }
                 return response.json();
             })
             .then(data => {
-                console.log("Response data:", data);
                 if (data.success) {
                     alert("Oefening toegevoegd!");
                     e.target.textContent = "✓";
-                    e.target.classList.add("completed");
-                    e.target.classList.add("disabled");
+                    e.target.classList.add("completed", "disabled");
                 } else {
                     alert("Kon oefening niet toevoegen: " + (data.message || "Onbekende fout"));
                 }
             })
             .catch(err => {
                 console.error("Fout bij toevoegen oefening:", err);
-                alert("Netwerkfout bij het toevoegen van de oefening: " + err.message);
+                alert("Netwerkfout: " + err.message);
             });
         }
     });

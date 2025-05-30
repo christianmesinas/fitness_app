@@ -2,16 +2,17 @@
     <section class="exercise-block">
         <a href="{{ url_for('main.exercise_detail', exercise_id=exercise.id) }}" class="exercise-block-link">
             <div class="exercise-block-content">
- {% if exercise.images and exercise.images[0] %}
-<img class="exercise-block-img" src="{{ url_for('static', filename='img/exercises/' + exercise.image) }}" alt="{{ exercise.name }}">
+{% if exercise.image_url %}
+    <img class="exercise-block-img" src="{{ url_for('static', filename='img/exercises/' + exercise.image_url) }}" alt="{{ exercise.name }}">
 {% else %}
     <img class="exercise-block-img" src="/static/img/exercises/default.jpg" alt="{{ exercise.name }}">
 {% endif %}
 
 
+
                 <h2>{{ exercise.name }}</h2>
             </div>
         </a>
-        <a href="#" class="add-exercise" data-exercise-id="{{ exercise.id }}">+</a>
+<a href="#" class="add-exercise" data-exercise-id="{{ exercise.id }}" data-next="{{ request.args.get('next', request.referrer) }}">+</a>
     </section>
 {% endfor %}

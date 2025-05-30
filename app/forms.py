@@ -1,5 +1,6 @@
+from flask import flash
 from flask_wtf import FlaskForm
-from wtforms import FieldList, FormField, StringField, FloatField, SelectField, IntegerField, SubmitField, ValidationError
+from wtforms import FieldList, FormField, HiddenField, StringField, FloatField, SelectField, IntegerField, SubmitField, ValidationError
 from wtforms.validators import DataRequired, Length, NumberRange, Optional
 from wtforms.widgets import Input
 
@@ -101,8 +102,14 @@ class SimpleWorkoutPlanForm(FlaskForm):
 
 class WorkoutPlanForm(FlaskForm):
     name = StringField('Plan Name', validators=[DataRequired(), Length(min=2, max=50)])
-    exercises = FieldList(FormField(ExerciseForm), min_entries=1)
+    exercises = FieldList(FormField(ExerciseForm), min_entries=0)
     submit = SubmitField('Create workout')
+
+    def validate_exercises(self, field):
+        exercise_ids = [exercise_form.exercise_id.data for exercise_form in field]
+        duplicates = set([x for x in exercise_ids if exercise_ids.count(x) > 1])
+        if duplicates:
+            flash(f'Waarschuwing: Meerdere exemplaren van oefening(en): {", ".join(str(d) for d in duplicates)}', 'warning')
 
 class ExerciseLogForm(FlaskForm):
     exercise_id = SelectField('Exercise', coerce=int, validators=[DataRequired()])
@@ -118,3 +125,8 @@ class ExerciseLogForm(FlaskForm):
 
 class DeleteWorkoutForm(FlaskForm):
     pass
+
+class DeleteExerciseForm(FlaskForm):
+    workout_plan_exercise_id = HiddenField('WorkoutPlanExercise ID', validators=[DataRequired()])
+    submit = SubmitField("Verwijder oefening")
+
