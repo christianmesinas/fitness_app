@@ -143,3 +143,7 @@ class DeleteWorkoutForm(FlaskForm):
 class DeleteExerciseForm(FlaskForm):
     workout_plan_exercise_id = IntegerField('Workout Plan Exercise ID', validators=[DataRequired()])
     submit = SubmitField('Delete')
+
+
+class SaveWorkoutForm(FlaskForm):
+    submit = SubmitField('Training opslaan')

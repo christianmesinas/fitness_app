@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from app import db
 from sqlalchemy.types import TypeDecorator, TEXT
+import uuid
 
 
 class JSONEncodedList(TypeDecorator):
@@ -300,4 +301,92 @@ class ExerciseLog(db.Model):
             'weight': self.weight,
             'duration': self.duration,
             'notes': self.notes
+        }
+
+
+class SetLog(db.Model):
+    __tablename__ = 'set_logs'
+
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('user.id'), nullable=False)
+    workout_plan_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('workout_plan.id'), nullable=False)
+    exercise_id: so.Mapped[str] = so.mapped_column(sa.ForeignKey('exercise.id'), nullable=False)
+    workout_plan_exercise_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('workout_plan_exercise.id'), nullable=False)
+
+    set_number: so.Mapped[int] = so.mapped_column(nullable=False)
+    reps: so.Mapped[int] = so.mapped_column(nullable=False)
+    weight: so.Mapped[float] = so.mapped_column(default=0.0)
+    completed: so.Mapped[bool] = so.mapped_column(default=False)
+
+    created_at: so.Mapped[datetime] = so.mapped_column(default=lambda: datetime.now(timezone.utc))
+    completed_at: so.Mapped[Optional[datetime]] = so.mapped_column(nullable=True)
+
+    workout_session_id: so.Mapped[Optional[str]] = so.mapped_column(sa.String(36), nullable=True)
+
+    user: so.Mapped['User'] = so.relationship(backref='set_logs')
+    workout_plan: so.Mapped['WorkoutPlan'] = so.relationship(backref='set_logs')
+    exercise: so.Mapped['Exercise'] = so.relationship(backref='set_logs')
+    workout_plan_exercise: so.Mapped['WorkoutPlanExercise'] = so.relationship(backref='set_logs')
+
+    def __repr__(self):
+        return f'<SetLog {self.id}: User {self.user_id}, Exercise {self.exercise_id}, Set {self.set_number}>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'set_number': self.set_number,
+            'reps': self.reps,
+            'weight': self.weight,
+            'completed': self.completed,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'exercise_name': self.exercise.name if self.exercise else None
+        }
+
+
+class WorkoutSession(db.Model):
+    __tablename__ = 'workout_sessions'
+
+    id: so.Mapped[str] = so.mapped_column(sa.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('user.id'), nullable=False)
+    workout_plan_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('workout_plan.id'), nullable=False)
+
+    started_at: so.Mapped[datetime] = so.mapped_column(default=lambda: datetime.now(timezone.utc))
+    completed_at: so.Mapped[Optional[datetime]] = so.mapped_column(nullable=True)
+    duration_minutes: so.Mapped[Optional[int]] = so.mapped_column(nullable=True)
+
+    total_sets: so.Mapped[int] = so.mapped_column(default=0)
+    total_reps: so.Mapped[int] = so.mapped_column(default=0)
+    total_weight: so.Mapped[float] = so.mapped_column(default=0.0)
+
+    is_completed: so.Mapped[bool] = so.mapped_column(default=False)
+
+    user: so.Mapped['User'] = so.relationship(backref='workout_sessions')
+    workout_plan: so.Mapped['WorkoutPlan'] = so.relationship(backref='workout_sessions')
+
+    def __repr__(self):
+        return f'<WorkoutSession {self.id}: User {self.user_id}, Plan {self.workout_plan_id}>'
+
+    def calculate_statistics(self):
+        set_logs = SetLog.query.filter_by(workout_session_id=self.id, completed=True).all()
+
+        self.total_sets = len(set_logs)
+        self.total_reps = sum(log.reps for log in set_logs)
+        self.total_weight = sum(log.reps * log.weight for log in set_logs)
+
+        if self.started_at and self.completed_at:
+            delta = self.completed_at - self.started_at
+            self.duration_minutes = int(delta.total_seconds() / 60)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'workout_plan_name': self.workout_plan.name if self.workout_plan else None,
+            'started_at': self.started_at.isoformat() if self.started_at else None,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'duration_minutes': self.duration_minutes,
+            'total_sets': self.total_sets,
+            'total_reps': self.total_reps,
+            'total_weight': self.total_weight,
+            'is_completed': self.is_completed
         }

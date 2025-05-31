@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h1>Workout Historiek</h1>
+
+{% if sessions.items %}
+    {% for session in sessions.items %}
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Workout van {{ session.completed_at.strftime('%d-%m-%Y %H:%M') }}</h5>
+                <p class="card-text">
+                    Plan: {{ session.workout_plan.name if session.workout_plan else 'Onbekend' }}<br>
+                    Sets voltooid: {{ session.set_logs|length }}
+                </p>
+                <a href="{{ url_for('main.workout_session_detail', session_id=session.id) }}" class="btn btn-secondary">
+                    Bekijk details
+                </a>
+            </div>
+        </div>
+    {% endfor %}
+
+    <div class="pagination">
+        {% if sessions.has_prev %}
+            <a href="{{ url_for('main.workout_history', page=sessions.prev_num) }}">← Vorige</a>
+        {% endif %}
+        {% if sessions.has_next %}
+            <a href="{{ url_for('main.workout_history', page=sessions.next_num) }}">Volgende →</a>
+        {% endif %}
+    </div>
+{% else %}
+    <p>Je hebt nog geen afgeronde workouts.</p>
+{% endif %}
+
+{% endblock %}

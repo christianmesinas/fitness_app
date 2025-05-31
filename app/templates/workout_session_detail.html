@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}FitTrack - Workout Session Details{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <a href="{{ url_for('main.workout_history') }}">
+        <img src="{{ url_for('static', filename='img/back.svg') }}" alt="Terug knop" class="back-icon"/>
+    </a>
+</div>
+
+<section class="header-section">
+    <h1>Workout van {{ workout_session.completed_at.strftime('%d-%m-%Y %H:%M') }}</h1>
+    <p>Plan: {{ workout_session.workout_plan.name if workout_session.workout_plan else 'Onbekend' }}</p>
+    <p>Duur: {{ workout_session.duration_minutes if workout_session.duration_minutes else 'N/A' }} minuten</p>
+    <p>Totale sets: {{ workout_session.total_sets }}</p>
+    <p>Totale reps: {{ workout_session.total_reps }}</p>
+    <p>Totaal gewicht: {{ workout_session.total_weight }} kg</p>
+</section>
+
+<section class="exercise-blok-section">
+    {% if exercise_groups %}
+        {% for exercise_id, group in exercise_groups.items() %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">{{ group.exercise.name }}</h5>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Set</th>
+                                <th>Reps</th>
+                                <th>Gewicht (kg)</th>
+                                <th>Voltooid</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for set_log in group.sets %}
+                                <tr>
+                                    <td>{{ set_log.set_number + 1 }}</td>
+                                    <td>{{ set_log.reps }}</td>
+                                    <td>{{ set_log.weight }}</td>
+                                    <td>{{ 'Ja' if set_log.completed else 'Nee' }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <a href="{{ url_for('main.exercise_detail', exercise_id=group.exercise.id) }}" class="btn btn-outline-secondary">Details</a>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>Geen voltooide sets gevonden voor deze sessie.</p>
+    {% endif %}
+</section>
+{% endblock %}

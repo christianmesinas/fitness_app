@@ -16,8 +16,8 @@
 
         <section class="single-exercise-page">
             <h2>Afbeelding</h2>
-            {% if exercise.images %}
-  <img class="single-exercise-img" src="{{ url_for('static', filename=exercise.images[0]) }}" alt="{{ exercise.name }}">
+  {% if exercise.images %}
+  <img class="single-exercise-img" src="{{ url_for('static', filename='img/exercises/' + exercise.images[0]) }}" alt="{{ exercise.name }}">
 {% else %}
   <img class="single-exercise-img" src="{{ url_for('static', filename='img/placeholder.png') }}" alt="{{ exercise.name }}">
 {% endif %}

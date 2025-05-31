@@ -51,6 +51,9 @@
             <p>Er zijn nog geen workouts in je huidige plan.</p>
         {% endfor %}
           <a href="{{ url_for('main.add_workout') }}" class="orange-btn-outline add-new-workout-btn home-btn">Add new workout</a>
+<a href="{{ url_for('main.workout_history') }}" class="orange-btn-outline add-new-workout-btn home-btn">
+    📅 Bekijk Workout Historiek
+</a>
 
         </section>
 

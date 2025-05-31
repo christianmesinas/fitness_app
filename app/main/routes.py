@@ -1,13 +1,14 @@
-from authlib.integrations.flask_oauth2 import requests
 from flask import render_template, request, current_app, session, redirect, url_for, flash, jsonify, abort
 from flask_login import login_required, current_user, login_user, logout_user
 from app.forms import EditProfileForm, NameForm, SearchExerciseForm, CurrentWeightForm, WorkoutPlanForm, \
     ExerciseLogForm, GoalWeightForm, ExerciseForm, SimpleWorkoutPlanForm, DeleteWorkoutForm, DeleteExerciseForm
-from app.models import Exercise, WorkoutPlanExercise, WorkoutPlan, ExerciseLog
+from app.models import Exercise, WorkoutPlanExercise, WorkoutPlan, ExerciseLog, SetLog, WorkoutSession
 import logging
-from flask_wtf.csrf import CSRFError
+from flask_wtf.csrf import generate_csrf,  validate_csrf, CSRFError
 from datetime import datetime, timezone
 from sqlalchemy import select
+import uuid
+
 
 import json
 
@@ -341,8 +342,6 @@ def add_workout():
 
 
     return render_template('new_workout.html', form=form, plan=None, workout_plan=None, exercises=exercises, existing_plans=existing_plans)
-
-import json
 
 
 @main.route('/edit_workout/<int:plan_id>', methods=['GET', 'POST'])
@@ -880,50 +879,304 @@ def start_workout(plan_id):
     if workout_plan.user_id != current_user.id:
         flash("Je hebt geen toegang tot deze workout.", "error")
         return redirect(url_for('main.index'))
+
+    # Maak een nieuwe workout sessie aan
+    session_id = str(uuid.uuid4())
+    workout_session = WorkoutSession(
+        id=session_id,
+        user_id=current_user.id,
+        workout_plan_id=plan_id
+    )
+    db.session.add(workout_session)
+    db.session.commit()
+
+    # Sla session_id op in browser session voor tracking
+    session['current_workout_session'] = session_id
+
     exercises = WorkoutPlanExercise.query.filter_by(workout_plan_id=plan_id).order_by(WorkoutPlanExercise.order).all()
-    return render_template('active_workout.html', workout_plan=workout_plan, exercises=exercises)
+    return render_template('active_workout.html',
+                           workout_plan=workout_plan,
+                           exercises=exercises,
+                           session_id=session_id,
+                           csrf_token=generate_csrf())
+
 
 @main.route('/save_workout/<int:plan_id>', methods=['POST'])
 @login_required
 def save_workout(plan_id):
     workout_plan = WorkoutPlan.query.get_or_404(plan_id)
     if workout_plan.user_id != current_user.id:
-        flash("Je hebt geen toegang tot deze workout.", "error")
+        flash("Geen toegang", "error")
         return redirect(url_for('main.index'))
-    wpes = WorkoutPlanExercise.query.filter_by(workout_plan_id=plan_id).all()
-    for wpe in wpes:
-        completed_sets = []
-        set_num = 0
-        while True:
-            completed_key = f'completed_{wpe.id}_{set_num}'
-            if completed_key not in request.form:
-                break
-            if request.form[completed_key]:
-                reps_key = f'reps_{wpe.id}_{set_num}'
-                weight_key = f'weight_{wpe.id}_{set_num}'
-                reps = request.form.get(reps_key, type=float)
-                weight = request.form.get(weight_key, type=float)
-                if reps is not None and weight is not None:
-                    completed_sets.append({'reps': reps, 'weight': weight})
-            set_num += 1
-        if completed_sets:
 
-            total_reps = sum(set['reps'] for set in completed_sets)
-            total_weight = sum(set['weight'] for set in completed_sets)
-            num_sets = len(completed_sets)
-            avg_reps = total_reps / num_sets if num_sets > 0 else 0
-            avg_weight = total_weight / num_sets if num_sets > 0 else 0
-            log = ExerciseLog(
-                user_id=current_user.id,
-                exercise_id=wpe.exercise_id,
-                workout_plan_id=plan_id,
-                sets=num_sets,
-                reps=avg_reps,
-                weight=avg_weight,
-                completed=True,
-                completed_at=datetime.now(timezone.utc)
-            )
-            db.session.add(log)
+    session_id = session.get('current_workout_session')
+    if not session_id:
+        flash("Geen actieve workout sessie", "error")
+        return redirect(url_for('main.start_workout', plan_id=plan_id))
+
+    for key, value in request.form.items():
+        if key.startswith("reps_"):
+            _, wpe_id_str, set_num_str = key.split("_")
+            wpe_id = int(wpe_id_str)
+            set_number = int(set_num_str)
+
+            try:
+                reps = int(value)
+            except (ValueError, TypeError):
+                reps = 0  # default als leeg of ongeldig
+
+            try:
+                weight = float(request.form.get(f"weight_{wpe_id}_{set_number}", 0) or 0)
+            except ValueError:
+                weight = 0.0
+
+            completed = f"completed_{wpe_id}_{set_number}" in request.form
+
+            existing_set = SetLog.query.filter_by(
+                workout_plan_exercise_id=wpe_id,
+                set_number=set_number,
+                workout_session_id=session_id
+            ).first()
+
+            if existing_set:
+                existing_set.reps = reps
+                existing_set.weight = weight
+                existing_set.completed = completed
+                if completed:
+                    existing_set.completed_at = datetime.now(timezone.utc)
+            else:
+                exercise = WorkoutPlanExercise.query.get(wpe_id)
+                db.session.add(SetLog(
+                    user_id=current_user.id,
+                    workout_plan_id=plan_id,
+                    exercise_id=exercise.exercise_id if exercise else None,
+                    workout_plan_exercise_id=wpe_id,
+                    set_number=set_number,
+                    reps=reps,
+                    weight=weight,
+                    completed=completed,
+                    workout_session_id=session_id,
+                    completed_at=datetime.now(timezone.utc) if completed else None
+                ))
+
     db.session.commit()
-    flash("Workout saved successfully!", "success")
-    return redirect(url_for('main.index'))
+    flash("Workout gegevens opgeslagen!", "success")
+    return redirect(url_for('main.start_workout', plan_id=plan_id))
+
+
+@main.route('/save_set', methods=['POST'])
+@login_required
+def save_set():
+    """Sla een individuele set op tijdens een actieve workout"""
+    data = request.get_json()
+
+    wpe_id = data.get('wpe_id')
+    set_number = data.get('set_number')
+    reps = data.get('reps')
+    weight = data.get('weight', 0.0)
+    completed = data.get('completed', False)
+
+    if not all([wpe_id, set_number is not None, reps]):
+        return jsonify({'success': False, 'message': 'Missing required data'}), 400
+
+    try:
+        # Haal WorkoutPlanExercise op
+        wpe = WorkoutPlanExercise.query.get_or_404(wpe_id)
+
+        # Controleer autorisatie
+        if wpe.workout_plan.user_id != current_user.id:
+            return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+
+        # Haal huidige workout session op
+        session_id = session.get('current_workout_session')
+        if not session_id:
+            return jsonify({'success': False, 'message': 'No active workout session'}), 400
+
+        # Check of deze set al bestaat
+        existing_set = SetLog.query.filter_by(
+            workout_plan_exercise_id=wpe_id,
+            set_number=set_number,
+            workout_session_id=session_id
+        ).first()
+
+        if existing_set:
+            # Update bestaande set
+            existing_set.reps = reps
+            existing_set.weight = weight
+            existing_set.completed = completed
+            if completed:
+                existing_set.completed_at = datetime.now(timezone.utc)
+            set_log = existing_set
+        else:
+            # Maak nieuwe set aan
+            set_log = SetLog(
+                user_id=current_user.id,
+                workout_plan_id=wpe.workout_plan_id,
+                exercise_id=wpe.exercise_id,
+                workout_plan_exercise_id=wpe_id,
+                set_number=set_number,
+                reps=reps,
+                weight=weight,
+                completed=completed,
+                workout_session_id=session_id,
+                completed_at=datetime.now(timezone.utc) if completed else None
+            )
+            db.session.add(set_log)
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Set saved successfully',
+            'set_id': set_log.id
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error saving set: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error saving set: {str(e)}'}), 500
+
+
+@main.route('/complete_workout/<int:plan_id>', methods=['POST'])
+@login_required
+def complete_workout(plan_id):
+    """Voltooi een workout sessie"""
+    try:
+        session_id = session.get('current_workout_session')
+        if not session_id:
+            return jsonify({'success': False, 'message': 'No active workout session'}), 400
+
+        workout_session = WorkoutSession.query.get_or_404(session_id)
+
+        # Controleer autorisatie
+        if workout_session.user_id != current_user.id:
+            return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+
+        # Markeer sessie als voltooid
+        workout_session.completed_at = datetime.now(timezone.utc)
+        workout_session.is_completed = True
+
+        # Bereken statistieken
+        workout_session.calculate_statistics()
+
+        # Maak ook een traditionele ExerciseLog voor backwards compatibility
+        completed_sets = SetLog.query.filter_by(
+            workout_session_id=session_id,
+            completed=True
+        ).all()
+
+        # Groepeer sets per oefening
+        exercise_groups = {}
+        for set_log in completed_sets:
+            exercise_id = set_log.exercise_id
+            if exercise_id not in exercise_groups:
+                exercise_groups[exercise_id] = []
+            exercise_groups[exercise_id].append(set_log)
+
+        # Maak ExerciseLog entries
+        for exercise_id, sets in exercise_groups.items():
+            if sets:  # Alleen als er sets zijn
+                avg_reps = sum(s.reps for s in sets) / len(sets)
+                avg_weight = sum(s.weight for s in sets) / len(sets)
+
+                exercise_log = ExerciseLog(
+                    user_id=current_user.id,
+                    exercise_id=exercise_id,
+                    workout_plan_id=plan_id,
+                    sets=len(sets),
+                    reps=avg_reps,
+                    weight=avg_weight,
+                    completed=True,
+                    completed_at=datetime.now(timezone.utc)
+                )
+                db.session.add(exercise_log)
+
+        db.session.commit()
+
+        # Clear session
+        session.pop('current_workout_session', None)
+
+        flash("Workout succesvol voltooid!", "success")
+        return jsonify({
+            'success': True,
+            'message': 'Workout completed successfully',
+            'session_stats': workout_session.to_dict()
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error completing workout: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error completing workout: {str(e)}'}), 500
+
+
+@main.route('/workout_history')
+@login_required
+def workout_history():
+    page = request.args.get('page', 1, type=int)
+    sessions = WorkoutSession.query.filter_by(
+        user_id=current_user.id,
+        is_completed=True
+    ).order_by(WorkoutSession.completed_at.desc()).paginate(
+        page=page, per_page=10, error_out=False
+    )
+    return render_template('workout_history.html', sessions=sessions)
+
+
+@main.route('/workout_session/<session_id>')
+@login_required
+def workout_session_detail(session_id):
+    workout_session = WorkoutSession.query.get_or_404(session_id)
+
+    if workout_session.user_id != current_user.id:
+        flash("Je hebt geen toegang tot deze workout sessie.", "error")
+        return redirect(url_for('main.workout_history'))
+
+    # Haal alle sets op voor deze sessie
+    set_logs = SetLog.query.filter_by(
+        workout_session_id=session_id,
+        completed=True
+    ).order_by(SetLog.exercise_id, SetLog.set_number).all()
+
+    # Groepeer per oefening
+    exercise_groups = {}
+    for set_log in set_logs:
+        exercise_id = set_log.exercise_id
+        if exercise_id not in exercise_groups:
+            exercise_groups[exercise_id] = {
+                'exercise': set_log.exercise,
+                'sets': []
+            }
+        exercise_groups[exercise_id]['sets'].append(set_log)
+
+    return render_template('workout_session_detail.html',
+                           workout_session=workout_session,
+                           exercise_groups=exercise_groups)
+
+
+@main.route('/get_workout_progress/<session_id>')
+@login_required
+def get_workout_progress(session_id):
+    workout_session = WorkoutSession.query.get_or_404(session_id)
+
+    if workout_session.user_id != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    completed_sets = SetLog.query.filter_by(
+        workout_session_id=session_id,
+        completed=True
+    ).count()
+
+    total_planned_sets = db.session.query(db.func.sum(WorkoutPlanExercise.sets)).filter_by(
+        workout_plan_id=workout_session.workout_plan_id
+    ).scalar() or 0
+
+    progress_percentage = (completed_sets / total_planned_sets * 100) if total_planned_sets > 0 else 0
+
+    return jsonify({
+        'completed_sets': completed_sets,
+        'total_planned_sets': total_planned_sets,
+        'progress_percentage': round(progress_percentage, 1),
+        'session_duration': (datetime.now(timezone.utc) - workout_session.started_at).total_seconds() / 60
+    })
+
+
