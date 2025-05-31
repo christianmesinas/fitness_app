@@ -941,3 +941,92 @@ select {
 .displayNone{
   display: none;
 }
+.history-block {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.workout-header h3 {
+    margin: 0 0 8px 0;
+    color: #333;
+    font-size: 1.2rem;
+}
+
+.workout-date {
+    color: #666;
+    font-size: 0.9rem;
+    margin: 0 0 16px 0;
+}
+
+.workout-stats {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 60px;
+}
+
+.stat-number {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #ff6b35;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: #666;
+    text-transform: uppercase;
+}
+
+.pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 20px;
+    padding: 0 20px;
+}
+
+.pagination-btn {
+    background: #ff6b35;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.pagination-btn:hover {
+    background: #e55a2b;
+}
+
+.pagination-info {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    background: white;
+    border-radius: 12px;
+    margin: 20px 0;
+}
+
+.empty-state h3 {
+    color: #333;
+    margin-bottom: 12px;
+}
+
+.empty-state p {
+    color: #666;
+    margin-bottom: 20px;
+}

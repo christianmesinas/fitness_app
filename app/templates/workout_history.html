@@ -1,34 +1,74 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<h1>Workout Historiek</h1>
+<div class="top-bar">
+    <a href="{{ url_for('main.index') }}">
+        <img src="{{ url_for('static', filename='img/back.svg') }}" alt="Terug knop" class="back-icon"/>
+    </a>
+</div>
 
-{% if sessions.items %}
-    {% for session in sessions.items %}
-        <div class="card mb-4">
-            <div class="card-body">
-                <h5 class="card-title">Workout van {{ session.completed_at.strftime('%d-%m-%Y %H:%M') }}</h5>
-                <p class="card-text">
-                    Plan: {{ session.workout_plan.name if session.workout_plan else 'Onbekend' }}<br>
-                    Sets voltooid: {{ session.set_logs|length }}
-                </p>
-                <a href="{{ url_for('main.workout_session_detail', session_id=session.id) }}" class="btn btn-secondary">
-                    Bekijk details
+<section class="header-section">
+    <h1>Workout Historiek</h1>
+</section>
+
+<section class="workout-blok-section">
+    {% if sessions.items %}
+        {% for session in sessions.items %}
+            <div class="workout-block history-block">
+                <div class="workout-header">
+                    <h3>{{ session.workout_plan.name if session.workout_plan else 'Onbekend Plan' }}</h3>
+                    <p class="workout-date">{{ session.completed_at.strftime('%d-%m-%Y om %H:%M') }}</p>
+                </div>
+
+                <div class="workout-stats">
+                    <div class="stat-item">
+                        <span class="stat-number">{{ session.total_sets_count or 0 }}</span>
+                        <span class="stat-label">Sets</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">{{ session.total_reps_count or 0 }}</span>
+                        <span class="stat-label">Reps</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">{{ "%.1f"|format(session.total_weight_count or 0) }}</span>
+                        <span class="stat-label">kg</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">{{ session.duration_minutes or 0 }}</span>
+                        <span class="stat-label">min</span>
+                    </div>
+                </div>
+
+                <a href="{{ url_for('main.workout_session_detail', session_id=session.id) }}" class="orange-btn-outline">
+                    Bekijk Details
                 </a>
             </div>
-        </div>
-    {% endfor %}
+        {% endfor %}
 
-    <div class="pagination">
-        {% if sessions.has_prev %}
-            <a href="{{ url_for('main.workout_history', page=sessions.prev_num) }}">← Vorige</a>
-        {% endif %}
-        {% if sessions.has_next %}
-            <a href="{{ url_for('main.workout_history', page=sessions.next_num) }}">Volgende →</a>
-        {% endif %}
-    </div>
-{% else %}
-    <p>Je hebt nog geen afgeronde workouts.</p>
-{% endif %}
+        <div class="pagination">
+            {% if sessions.has_prev %}
+                <a href="{{ url_for('main.workout_history', page=sessions.prev_num) }}" class="pagination-btn">← Vorige</a>
+            {% endif %}
+
+            <span class="pagination-info">
+                Pagina {{ sessions.page }} van {{ sessions.pages }}
+            </span>
+
+            {% if sessions.has_next %}
+                <a href="{{ url_for('main.workout_history', page=sessions.next_num) }}" class="pagination-btn">Volgende →</a>
+            {% endif %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <h3>Nog geen workouts voltooid</h3>
+            <p>Je hebt nog geen workouts afgerond. Start je eerste workout om je voortgang bij te houden!</p>
+            <a href="{{ url_for('main.index') }}" class="orange-btn">Naar Dashboard</a>
+        </div>
+    {% endif %}
+</section>
+
+<style>
+
+</style>
 
 {% endblock %}

@@ -1,10 +1,8 @@
 {% extends "base.html" %}
-
 {% block title %}FitTrack - Actieve Workout{% endblock %}
-
 {% block content %}
     <form method="POST" action="{{ url_for('main.save_workout', plan_id=workout_plan.id) }}" id="save-workout-form">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {{ form.csrf_token }}
         <div class="top-bar">
             <a href="{{ url_for('main.index') }}">
                 <img src="{{ url_for('static', filename='img/back.svg') }}" alt="Terug knop" class="back-icon"/>
@@ -22,8 +20,8 @@
                     <section class="set-section">
                         {% for set_num in range(wpe.sets) %}
                             <div class="active-workout-set">
-                                <input type="number" name="reps_{{ wpe.id }}_{{ set_num }}" min="0" step="1" placeholder="{{ wpe.reps }} reps">
-                                <input type="number" name="weight_{{ wpe.id }}_{{ set_num }}" min="0" step="0.1" placeholder="{{ wpe.weight }} KG">
+                                <input type="number" name="reps_{{ wpe.id }}_{{ set_num }}" min="0" step="1" placeholder="{{ wpe.reps }} reps" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                                <input type="number" name="weight_{{ wpe.id }}_{{ set_num }}" min="0" step="0.1" placeholder="{{ wpe.weight }} KG" oninput="this.value = this.value.replace(/[^0-9.]/g, '')">
                                 <label class="custom-checkbox">
                                     <input type="checkbox" name="completed_{{ wpe.id }}_{{ set_num }}">
                                     <span class="checkmark"></span>
@@ -38,35 +36,83 @@
                     </div>
                 </section>
             {% endfor %}
-            <button type="submit" class="orange-btn-outline add-new-workout-btn">Training opslaan</button>
-            <button type="button" id="complete-workout-btn" class="orange-btn-outline add-new-workout-btn" data-plan-id="{{ workout_plan.id }}">Workout voltooien</button>
+            <button type="button" id="save-complete-workout-btn" class="orange-btn-outline add-new-workout-btn" data-plan-id="{{ workout_plan.id }}">Workout opslaan en voltooien</button>
         </section>
     </form>
 
     <script src="{{ url_for('static', filename='js/add-set.js') }}" defer></script>
     <script>
-        document.getElementById('complete-workout-btn').addEventListener('click', function() {
-            const planId = this.getAttribute('data-plan-id');
-            fetch(`/complete_workout/${planId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-Token': '{{ csrf_token() }}'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('Workout succesvol voltooid!');
-                    window.location.href = '{{ url_for('main.workout_history') }}';
-                } else {
-                    alert('Fout: ' + data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Er ging iets mis bij het voltooien van de workout.');
+        const saveCompleteBtn = document.getElementById('save-complete-workout-btn');
+        if (saveCompleteBtn) {
+            saveCompleteBtn.addEventListener('click', function() {
+                const planId = this.getAttribute('data-plan-id');
+                const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+                const form = document.getElementById('save-workout-form');
+                const formData = new FormData(form);
+
+                console.log(`Saving and completing workout for plan_id: ${planId}, CSRF: ${csrfToken}`);
+                console.log('Form data entries:', [...formData.entries()]);
+
+                // Step 1: Save workout
+                fetch(`/save_workout/${planId}`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: formData
+                })
+                .then(response => {
+                    console.log(`Save workout response status: ${response.status}`);
+                    if (!response.ok) {
+                        return response.text().then(text => {
+                            console.error('Save workout response text:', text);
+                            throw new Error(`Save workout failed! Status: ${response.status}, Response: ${text}`);
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Save workout response:', data);
+                    if (!data.success) {
+                        throw new Error(`Save workout error: ${data.message}`);
+                    }
+                    // Step 2: Complete workout
+                    console.log(`Completing workout for plan_id: ${planId}`);
+                    return fetch(`/complete_workout/${planId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': csrfToken
+                        },
+                        body: JSON.stringify({})
+                    });
+                })
+                .then(response => {
+                    console.log(`Complete workout response status: ${response.status}`);
+                    if (!response.ok) {
+                        return response.text().then(text => {
+                            console.error('Complete workout response text:', text);
+                            throw new Error(`Complete workout failed! Status: ${response.status}, Response: ${text}`);
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Complete workout response:', data);
+                    if (data.success) {
+                        alert('Workout succesvol opgeslagen en voltooid!');
+                        window.location.href = '{{ url_for('main.workout_history') }}';
+                    } else {
+                        alert(`Fout bij voltooien: ${data.message}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert(`Er ging iets mis: ${error.message}`);
+                });
             });
-        });
+        } else {
+            console.error('Save and complete workout button not found');
+        }
     </script>
 {% endblock %}

@@ -147,3 +147,6 @@ class DeleteExerciseForm(FlaskForm):
 
 class SaveWorkoutForm(FlaskForm):
     submit = SubmitField('Training opslaan')
+
+class ActiveWorkoutForm(FlaskForm):
+    pass
