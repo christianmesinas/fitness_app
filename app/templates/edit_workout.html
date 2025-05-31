@@ -51,10 +51,10 @@
 
             <div class="exercise-details displayNone">
               {{ exercise_form.hidden_tag() }}
-              {{ exercise_form.exercise_id(type="hidden", value=plan_exercise.exercise_id) }}
-              {{ exercise_form.order(type="hidden", value=loop.index0) }}
+     <input type="hidden" name="exercises-{{ loop.index0 }}-exercise_id" value="{{ plan_exercise.exercise_id }}">                {{ exercise_form.order(type="hidden", value=loop.index0) }}
+                {{ exercise_form.is_edit(type="hidden", value=1) }}
 
-              <div class="form-group">
+                <div class="form-group">
                 <label for="{{ exercise_form.sets.id }}">Sets</label>
                 {{ exercise_form.sets(class="form-control", type="number", min="0", value=plan_exercise.sets) }}
                 {% if exercise_form.sets.errors %}

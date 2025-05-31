@@ -12,11 +12,12 @@ class RangeInput(Input):
 
 
 class ExerciseForm(FlaskForm):
-    exercise_id = SelectField('Exercise', coerce=int, validators=[DataRequired()])
+    exercise_id = IntegerField('Exercise', validators=[])
     sets = IntegerField('Sets', validators=[Optional(), NumberRange(min=0)])
     reps = IntegerField('Reps', validators=[Optional(), NumberRange(min=0)])
     weight = FloatField('Weight (kg)', validators=[Optional(), NumberRange(min=0)])
     order = IntegerField('Order', validators=[Optional()], default=0)
+    is_edit = IntegerField('Is Edit', default=0)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -114,12 +115,14 @@ class WorkoutPlanForm(FlaskForm):
     def validate_exercises(self, field):
         exercise_ids = [exercise_form.exercise_id.data for exercise_form in field]
         logger.debug(f"Validating exercises: {exercise_ids}")
-        for idx, ex_id in enumerate(exercise_ids):
-            if ex_id == 0:
-                field.errors.append(f'Oefening {idx+1}: Selecteer een geldige oefening.')
+        for idx, (ex_id, exercise_form) in enumerate(zip(exercise_ids, field)):
+            if ex_id == 0 and not exercise_form.is_edit.data:
+                field.errors.append(f'Oefening {idx + 1}: Selecteer een geldige oefening.')
         duplicates = set([x for x in exercise_ids if exercise_ids.count(x) > 1 and x != 0])
         if duplicates:
-            flash(f'Waarschuwing: Meerdere exemplaren van oefening(en): {", ".join(str(d) for d in duplicates)}', 'warning')
+            flash(f'Waarschuwing: Meerdere exemplaren van oefening(en): {", ".join(str(d) for d in duplicates)}',
+                  'warning')
+
 
 
 class ExerciseLogForm(FlaskForm):
