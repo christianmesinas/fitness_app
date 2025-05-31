@@ -8,20 +8,20 @@
 </div>
 
 <section class="header-section">
-  <form method="POST" action="{{ url_for('main.edit_workout', plan_id=workout_plan.id) }}" class="add-workout-form">
+  <form method="POST" action="{{ url_for('main.edit_workout', plan_id=workout_plan.id) }}" class="add-workout-form" id="main-workout-form">
     {{ form.hidden_tag() }}
 
-<div class="workout-name">
-  <h1>{{ form.name.label }}</h1>
-  {{ form.name(placeholder="Naam van workout", required=True) }}
-  {% if form.name.errors %}
-    <ul class="errors">
-      {% for error in form.name.errors %}
-        <li>{{ error }}</li>
-      {% endfor %}
-    </ul>
-  {% endif %}
-</div>
+    <div class="workout-name">
+      <h1>{{ form.name.label }}</h1>
+      {{ form.name(placeholder="Naam van workout", required=True, value=workout_plan.name) }}
+      {% if form.name.errors %}
+        <ul class="errors">
+          {% for error in form.name.errors %}
+            <li>{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
 
     <section class="exercise-blok-section">
       {% if exercise_pairs %}
@@ -33,11 +33,12 @@
 
             <!-- Instellingenmenu -->
             <div class="settings-menu" style="display:none;">
-              <form method="POST" action="{{ url_for('main.delete_exercise_from_plan', plan_id=workout_plan.id) }}" style="margin:0;">
-                {{ delete_exercise_form.csrf_token }}
-                <input type="hidden" name="workout_plan_exercise_id" value="{{ plan_exercise.id }}">
-                <button type="submit" class="btn-delete-exercise" style="background:none; border:none; color:red; cursor:pointer; padding:0;">Verwijder oefening</button>
-              </form>
+              <button type="button" class="btn-delete-exercise"
+                      data-plan-id="{{ workout_plan.id }}"
+                      data-wpe-id="{{ plan_exercise.id }}"
+                      style="background:none; border:none; color:red; cursor:pointer; padding:5px 10px;">
+                Verwijder oefening
+              </button>
             </div>
 
             {% if exercise_obj and exercise_obj.images_list %}
@@ -48,44 +49,47 @@
 
             <h2>{{ exercise_obj.name if exercise_obj else "Onbekende oefening" }}</h2>
 
-  <div class="exercise-details displayNone">
-  {{ exercise_form.hidden_tag() }}
-  {{ exercise_form.exercise_id(hidden=True, value=exercise_form.exercise_id.data|default(None)) }}
-{{ exercise_form.order(hidden=True, value=exercise_form.order.data | int) }}
-  <div class="form-group">
-    <label for="{{ exercise_form.sets.id }}">Sets</label>
-    {{ exercise_form.sets(class="form-control", type="number", min="0") }}
-    {% if exercise_form.sets.errors %}
-      <ul class="errors">
-        {% for error in exercise_form.sets.errors %}
-          <li>{{ error }}</li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-  </div>
-  <div class="form-group">
-    <label for="{{ exercise_form.reps.id }}">Reps</label>
-    {{ exercise_form.reps(class="form-control", type="number", min="0") }}
-    {% if exercise_form.reps.errors %}
-      <ul class="errors">
-        {% for error in exercise_form.reps.errors %}
-          <li>{{ error }}</li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-  </div>
-  <div class="form-group">
-    <label for="{{ exercise_form.weight.id }}">Gewicht (kg)</label>
-    {{ exercise_form.weight(class="form-control", type="number", step="0.1", min="0") }}
-    {% if exercise_form.weight.errors %}
-      <ul class="errors">
-        {% for error in exercise_form.weight.errors %}
-          <li>{{ error }}</li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-  </div>
-</div>
+            <div class="exercise-details displayNone">
+              {{ exercise_form.hidden_tag() }}
+              {{ exercise_form.exercise_id(type="hidden", value=plan_exercise.exercise_id) }}
+              {{ exercise_form.order(type="hidden", value=loop.index0) }}
+
+              <div class="form-group">
+                <label for="{{ exercise_form.sets.id }}">Sets</label>
+                {{ exercise_form.sets(class="form-control", type="number", min="0", value=plan_exercise.sets) }}
+                {% if exercise_form.sets.errors %}
+                  <ul class="errors">
+                    {% for error in exercise_form.sets.errors %}
+                      <li>{{ error }}</li>
+                    {% endfor %}
+                  </ul>
+                {% endif %}
+              </div>
+
+              <div class="form-group">
+                <label for="{{ exercise_form.reps.id }}">Reps</label>
+                {{ exercise_form.reps(class="form-control", type="number", min="0", value=plan_exercise.reps) }}
+                {% if exercise_form.reps.errors %}
+                  <ul class="errors">
+                    {% for error in exercise_form.reps.errors %}
+                      <li>{{ error }}</li>
+                    {% endfor %}
+                  </ul>
+                {% endif %}
+              </div>
+
+              <div class="form-group">
+                <label for="{{ exercise_form.weight.id }}">Gewicht (kg)</label>
+                {{ exercise_form.weight(class="form-control", type="number", step="0.1", min="0", value=plan_exercise.weight) }}
+                {% if exercise_form.weight.errors %}
+                  <ul class="errors">
+                    {% for error in exercise_form.weight.errors %}
+                      <li>{{ error }}</li>
+                    {% endfor %}
+                  </ul>
+                {% endif %}
+              </div>
+            </div>
           </section>
         {% endfor %}
       {% else %}
@@ -94,29 +98,66 @@
 
       <a href="{{ url_for('main.search_exercise', plan_id=workout_plan.id) }}" class="second-grey-cta-btn">Add exercise</a>
       {{ form.submit(value="Update workout", class="orange-btn-outline add-new-workout-btn") }}
-    </form>
+    </section>
+  </form>
 
-    <form method="POST" action="{{ url_for('main.remove_workout', plan_id=workout_plan.id) }}" onsubmit="return confirm('Weet je zeker dat je deze workout wilt verwijderen?');">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="btn btn-danger">Verwijder hele workout</button>
-    </form>
-  </section>
+  <!-- Separate form for workout deletion -->
+  <form method="POST" action="{{ url_for('main.remove_workout', plan_id=workout_plan.id) }}"
+        onsubmit="return confirm('Weet je zeker dat je deze workout wilt verwijderen?');"
+        style="margin-top: 20px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-danger">Verwijder hele workout</button>
+  </form>
+
+  <!-- Hidden form for exercise deletion -->
+  <form method="POST" id="delete-exercise-form" style="display:none;">
+    {{ delete_exercise_form.csrf_token }}
+    <input type="hidden" name="workout_plan_exercise_id" id="delete-wpe-id">
+  </form>
 </section>
+
 
 <script>
 // JavaScript voor toggle menu bij de drie-puntjes
 document.querySelectorAll('.setting-dots-workout').forEach(dot => {
   dot.addEventListener('click', (e) => {
     e.preventDefault();
+    e.stopPropagation();
+
     // Sluit andere menu's
     document.querySelectorAll('.settings-menu').forEach(menu => {
       if (menu !== dot.nextElementSibling) {
         menu.style.display = 'none';
       }
     });
+
     // Toggle dit menu
     const menu = dot.nextElementSibling;
     menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
+  });
+});
+
+// Handle exercise deletion
+document.querySelectorAll('.btn-delete-exercise').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (confirm('Weet je zeker dat je deze oefening wilt verwijderen?')) {
+      const planId = btn.getAttribute('data-plan-id');
+      const wpeId = btn.getAttribute('data-wpe-id');
+
+      // Set the hidden form values
+      document.getElementById('delete-wpe-id').value = wpeId;
+
+      // Submit the hidden form to the correct endpoint
+      const deleteForm = document.getElementById('delete-exercise-form');
+      deleteForm.action = `/delete_exercise_from_plan/${planId}`;
+      deleteForm.submit();
+    }
+
+    // Close the menu
+    btn.closest('.settings-menu').style.display = 'none';
   });
 });
 
@@ -125,6 +166,11 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('.setting-dots-workout') && !e.target.closest('.settings-menu')) {
     document.querySelectorAll('.settings-menu').forEach(menu => menu.style.display = 'none');
   }
+});
+
+// Debug: Log form submission
+document.getElementById('main-workout-form').addEventListener('submit', function(e) {
+  console.log('Form being submitted with name:', document.querySelector('input[name="name"]').value);
 });
 </script>
 {% endblock %}

@@ -3,6 +3,7 @@ from flask_wtf import FlaskForm
 from wtforms import FieldList, FormField, HiddenField, StringField, FloatField, SelectField, IntegerField, SubmitField, ValidationError
 from wtforms.validators import DataRequired, Length, NumberRange, Optional
 from wtforms.widgets import Input
+import logging as logger
 
 
 class RangeInput(Input):
@@ -15,12 +16,17 @@ class ExerciseForm(FlaskForm):
     sets = IntegerField('Sets', validators=[Optional(), NumberRange(min=0)])
     reps = IntegerField('Reps', validators=[Optional(), NumberRange(min=0)])
     weight = FloatField('Weight (kg)', validators=[Optional(), NumberRange(min=0)])
-    order = IntegerField('Order', default=0)
+    order = IntegerField('Order', validators=[Optional()], default=0)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         from app.models import Exercise
-        self.exercise_id.choices = [(e.id, e.name) for e in Exercise.query.all()]
+        choices = [(0, 'Selecteer een oefening')] + [(e.id, e.name) for e in Exercise.query.all()]
+        self.exercise_id.choices = choices
+        if not self.exercise_id.data or self.exercise_id.data not in [c[0] for c in choices]:
+            self.exercise_id.data = 0
+        logger.debug(f"ExerciseForm initialized with exercise_id: {self.exercise_id.data}")
+
 
     class Meta:
         csrf = False  # Dit schakelt CSRF uit voor dit subformulier
@@ -107,9 +113,14 @@ class WorkoutPlanForm(FlaskForm):
 
     def validate_exercises(self, field):
         exercise_ids = [exercise_form.exercise_id.data for exercise_form in field]
-        duplicates = set([x for x in exercise_ids if exercise_ids.count(x) > 1])
+        logger.debug(f"Validating exercises: {exercise_ids}")
+        for idx, ex_id in enumerate(exercise_ids):
+            if ex_id == 0:
+                field.errors.append(f'Oefening {idx+1}: Selecteer een geldige oefening.')
+        duplicates = set([x for x in exercise_ids if exercise_ids.count(x) > 1 and x != 0])
         if duplicates:
             flash(f'Waarschuwing: Meerdere exemplaren van oefening(en): {", ".join(str(d) for d in duplicates)}', 'warning')
+
 
 class ExerciseLogForm(FlaskForm):
     exercise_id = SelectField('Exercise', coerce=int, validators=[DataRequired()])
@@ -127,6 +138,5 @@ class DeleteWorkoutForm(FlaskForm):
     pass
 
 class DeleteExerciseForm(FlaskForm):
-    workout_plan_exercise_id = HiddenField('WorkoutPlanExercise ID', validators=[DataRequired()])
-    submit = SubmitField("Verwijder oefening")
-
+    workout_plan_exercise_id = IntegerField('Workout Plan Exercise ID', validators=[DataRequired()])
+    submit = SubmitField('Delete')
