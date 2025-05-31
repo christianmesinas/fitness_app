@@ -871,3 +871,59 @@ def remove_workout(plan_id):
         db.session.rollback()
         flash('Er is iets fout gegaan bij het verwijderen van de workout.', 'error')
         return redirect(url_for('main.edit_workout', plan_id=plan_id))
+
+
+@main.route('/start_workout/<int:plan_id>', methods=['GET'])
+@login_required
+def start_workout(plan_id):
+    workout_plan = WorkoutPlan.query.get_or_404(plan_id)
+    if workout_plan.user_id != current_user.id:
+        flash("Je hebt geen toegang tot deze workout.", "error")
+        return redirect(url_for('main.index'))
+    exercises = WorkoutPlanExercise.query.filter_by(workout_plan_id=plan_id).order_by(WorkoutPlanExercise.order).all()
+    return render_template('active_workout.html', workout_plan=workout_plan, exercises=exercises)
+
+@main.route('/save_workout/<int:plan_id>', methods=['POST'])
+@login_required
+def save_workout(plan_id):
+    workout_plan = WorkoutPlan.query.get_or_404(plan_id)
+    if workout_plan.user_id != current_user.id:
+        flash("Je hebt geen toegang tot deze workout.", "error")
+        return redirect(url_for('main.index'))
+    wpes = WorkoutPlanExercise.query.filter_by(workout_plan_id=plan_id).all()
+    for wpe in wpes:
+        completed_sets = []
+        set_num = 0
+        while True:
+            completed_key = f'completed_{wpe.id}_{set_num}'
+            if completed_key not in request.form:
+                break
+            if request.form[completed_key]:
+                reps_key = f'reps_{wpe.id}_{set_num}'
+                weight_key = f'weight_{wpe.id}_{set_num}'
+                reps = request.form.get(reps_key, type=float)
+                weight = request.form.get(weight_key, type=float)
+                if reps is not None and weight is not None:
+                    completed_sets.append({'reps': reps, 'weight': weight})
+            set_num += 1
+        if completed_sets:
+
+            total_reps = sum(set['reps'] for set in completed_sets)
+            total_weight = sum(set['weight'] for set in completed_sets)
+            num_sets = len(completed_sets)
+            avg_reps = total_reps / num_sets if num_sets > 0 else 0
+            avg_weight = total_weight / num_sets if num_sets > 0 else 0
+            log = ExerciseLog(
+                user_id=current_user.id,
+                exercise_id=wpe.exercise_id,
+                workout_plan_id=plan_id,
+                sets=num_sets,
+                reps=avg_reps,
+                weight=avg_weight,
+                completed=True,
+                completed_at=datetime.now(timezone.utc)
+            )
+            db.session.add(log)
+    db.session.commit()
+    flash("Workout saved successfully!", "success")
+    return redirect(url_for('main.index'))

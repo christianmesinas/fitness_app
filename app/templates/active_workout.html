@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}FitTrack - Actieve Workout{% endblock %}
+
+{% block content %}
+    <form method="POST" action="{{ url_for('main.save_workout', plan_id=workout_plan.id) }}">
+        <div class="top-bar">
+            <a href="{{ url_for('main.index') }}">
+                <img src="{{ url_for('static', filename='img/back.svg') }}" alt="Terug knop" class="back-icon"/>
+            </a>
+        </div>
+        <section class="header-section">
+            <div class="workout-name">
+                <h1>{{ workout_plan.name }}</h1>
+            </div>
+        </section>
+        <section class="exercise-blok-section">
+            {% for wpe in exercises %}
+<section class="active-workout-block" data-wpe-id="{{ wpe.id }}">
+                <h2>{{ wpe.exercise.name }}</h2>
+                <section class="set-section">
+                    {% for set_num in range(wpe.sets) %}
+                    <div class="active-workout-set">
+                        <input type="number" name="reps_{{ wpe.id }}_{{ set_num }}" min="0" step="1" placeholder="{{ wpe.reps }} reps">
+                        <input type="number" name="weight_{{ wpe.id }}_{{ set_num }}" min="0" step="0.1" placeholder="{{ wpe.weight }} KG">
+                        <label class="custom-checkbox">
+                            <input type="checkbox" name="completed_{{ wpe.id }}_{{ set_num }}">
+                            <span class="checkmark"></span>
+                        </label>
+                    </div>
+                    {% endfor %}
+                </section>
+                <div class="active-workout-button-section">
+                    <a href="#" class="orange-btn-outline active-workout-btn">Set toevoegen</a>
+                    <a href="#" class="orange-btn-outline active-workout-btn">Alles voltooien</a>
+                </div>
+            </section>
+            {% endfor %}
+            <button type="submit" class="orange-btn-outline add-new-workout-btn">Training opslaan</button>
+        </section>
+    </form>
+
+    <script src="{{ url_for('static', filename='js/add_set.js') }}" defer></script>
+{% endblock %}

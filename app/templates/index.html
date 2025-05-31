@@ -33,7 +33,7 @@
                 {% endfor %}
                 </ul>
 
-                <a href="#" class="orange-btn workout-start-btn">Start</a>
+<a href="{{ url_for('main.start_workout', plan_id=workout_info.plan.id) }}" class="orange-btn workout-start-btn">Start</a>
 
                 <div class="setting-dots-wrapper">
                     <a href="#" class="setting-dots-workout">...</a>
