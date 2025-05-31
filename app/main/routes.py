@@ -885,10 +885,18 @@ def start_workout(plan_id):
     workout_session = WorkoutSession(
         id=session_id,
         user_id=current_user.id,
-        workout_plan_id=plan_id
+        workout_plan_id=plan_id,
+        started_at=datetime.now(timezone.utc),
     )
     db.session.add(workout_session)
-    db.session.commit()
+    try:
+        db.session.commit()
+        logger.debug(f"Created workout_session: id={session_id}, started_at={workout_session.started_at}")
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Failed to create workout session: {str(e)}")
+        return jsonify({'success': False, 'message': 'Failed to start workout'}), 500
+
 
     # Sla session_id op in browser session voor tracking
     session['current_workout_session'] = session_id

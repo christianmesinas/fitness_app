@@ -1,5 +1,7 @@
 import json
 from enum import Enum
+
+import pytz
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from datetime import datetime, timezone
@@ -351,8 +353,8 @@ class WorkoutSession(db.Model):
     user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('user.id'), nullable=False)
     workout_plan_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('workout_plan.id'), nullable=False)
 
-    started_at: so.Mapped[datetime] = so.mapped_column(default=lambda: datetime.now(timezone.utc))
-    completed_at: so.Mapped[Optional[datetime]] = so.mapped_column(nullable=True)
+    started_at: so.Mapped[datetime] = so.mapped_column(sa.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    completed_at: so.Mapped[Optional[datetime]] = so.mapped_column(sa.DateTime(timezone=True), nullable=True)
     duration_minutes: so.Mapped[Optional[int]] = so.mapped_column(nullable=True)
 
     total_sets: so.Mapped[int] = so.mapped_column(default=0)
@@ -364,8 +366,12 @@ class WorkoutSession(db.Model):
     user: so.Mapped['User'] = so.relationship(backref='workout_sessions')
     workout_plan: so.Mapped['WorkoutPlan'] = so.relationship(backref='workout_sessions')
 
-    def __repr__(self):
-        return f'<WorkoutSession {self.id}: User {self.user_id}, Plan {self.workout_plan_id}>'
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if self.started_at and self.started_at.tzinfo is None:
+            self.started_at = self.started_at.replace(tzinfo=pytz.UTC)
+        if self.completed_at and self.completed_at.tzinfo is None:
+            self.completed_at = self.completed_at.replace(tzinfo=pytz.UTC)
 
     def calculate_statistics(self):
         set_logs = SetLog.query.filter_by(workout_session_id=self.id, completed=True).all()
@@ -375,8 +381,12 @@ class WorkoutSession(db.Model):
         self.total_weight = sum(log.reps * log.weight for log in set_logs)
 
         if self.started_at and self.completed_at:
-            delta = self.completed_at - self.started_at
+            started_at = self.started_at if self.started_at.tzinfo else self.started_at.replace(tzinfo=pytz.UTC)
+            completed_at = self.completed_at if self.completed_at.tzinfo else self.completed_at.replace(tzinfo=pytz.UTC)
+            delta = completed_at - started_at
             self.duration_minutes = int(delta.total_seconds() / 60)
+        else:
+            self.duration_minutes = 0
 
     def to_dict(self):
         return {

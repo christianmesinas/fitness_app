@@ -25,6 +25,15 @@ def upgrade():
     with op.batch_alter_table('workout_plan_exercise', schema=None) as batch_op:
         batch_op.add_column(sa.Column('weight', sa.Float(), nullable=True))
 
+    op.alter_column('workout_sessions', 'started_at',
+                    existing_type=sa.DateTime(),
+                    type_=sa.DateTime(timezone=True),
+                    existing_nullable=False)
+    op.alter_column('workout_sessions', 'completed_at',
+                    existing_type=sa.DateTime(),
+                    type_=sa.DateTime(timezone=True),
+                    existing_nullable=True)
+
     # ### end Alembic commands ###
 
 
@@ -37,4 +46,12 @@ def downgrade():
         batch_op.add_column(sa.Column('start_date', sa.DATETIME(), nullable=True))
         batch_op.add_column(sa.Column('end_date', sa.DATETIME(), nullable=True))
 
+    op.alter_column('workout_sessions', 'started_at',
+                    existing_type=sa.DateTime(timezone=True),
+                    type_=sa.DateTime(),
+                    existing_nullable=False)
+    op.alter_column('workout_sessions', 'completed_at',
+                    existing_type=sa.DateTime(timezone=True),
+                    type_=sa.DateTime(),
+                    existing_nullable=True)
     # ### end Alembic commands ###
