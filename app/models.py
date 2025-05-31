@@ -236,6 +236,7 @@ class WorkoutPlan(db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('user.id'), index=True)
     name: so.Mapped[str] = so.mapped_column(sa.String(100))
+    is_archived: so.Mapped[bool] = so.mapped_column(sa.Boolean, default=False)
     created_at: so.Mapped[datetime] = so.mapped_column(default=lambda: datetime.now(timezone.utc))
     user: so.Mapped['User'] = so.relationship(
         back_populates='workout_plans',
@@ -251,7 +252,8 @@ class WorkoutPlan(db.Model):
             'id': self.id,
             'name': self.name,
             'created_at': self.created_at.isoformat(),
-            'user_id': self.user_id
+            'user_id': self.user_id,
+            'is_archived': self.is_archived
         }
 
 class WorkoutPlanExercise(db.Model):
@@ -266,6 +268,7 @@ class WorkoutPlanExercise(db.Model):
 
     workout_plan = so.relationship("WorkoutPlan", back_populates="exercises")
     exercise: so.Mapped['Exercise'] = so.relationship()
+    set_logs: so.WriteOnlyMapped['SetLog'] = so.relationship(back_populates="workout_plan_exercise")
 
     def __repr__(self):
         return f'<WorkoutPlanExercise {self.exercise_id} in {self.workout_plan_id}>'
@@ -305,30 +308,28 @@ class ExerciseLog(db.Model):
             'notes': self.notes
         }
 
-
 class SetLog(db.Model):
     __tablename__ = 'set_logs'
 
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('user.id'), nullable=False)
-    workout_plan_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('workout_plan.id'), nullable=False)
-    exercise_id: so.Mapped[str] = so.mapped_column(sa.ForeignKey('exercise.id'), nullable=False)
-    workout_plan_exercise_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('workout_plan_exercise.id'), nullable=False)
-
+    user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    workout_plan_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey('workout_plan.id', ondelete='SET NULL'), nullable=True)  # Changed to nullable=True and SET NULL
+    exercise_id: so.Mapped[str] = so.mapped_column(sa.ForeignKey('exercise.id', ondelete='CASCADE'), nullable=False)
+    workout_plan_exercise_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey('workout_plan_exercise.id', ondelete='SET NULL'), nullable=True)
     set_number: so.Mapped[int] = so.mapped_column(nullable=False)
     reps: so.Mapped[int] = so.mapped_column(nullable=False)
     weight: so.Mapped[float] = so.mapped_column(default=0.0)
     completed: so.Mapped[bool] = so.mapped_column(default=False)
 
-    created_at: so.Mapped[datetime] = so.mapped_column(default=lambda: datetime.now(timezone.utc))
-    completed_at: so.Mapped[Optional[datetime]] = so.mapped_column(nullable=True)
+    created_at: so.Mapped[datetime] = so.mapped_column(sa.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    completed_at: so.Mapped[Optional[datetime]] = so.mapped_column(sa.DateTime(timezone=True), nullable=True)
 
     workout_session_id: so.Mapped[Optional[str]] = so.mapped_column(sa.String(36), nullable=True)
 
     user: so.Mapped['User'] = so.relationship(backref='set_logs')
-    workout_plan: so.Mapped['WorkoutPlan'] = so.relationship(backref='set_logs')
+    workout_plan: so.Mapped[Optional['WorkoutPlan']] = so.relationship(backref='set_logs')  # Updated to Optional
     exercise: so.Mapped['Exercise'] = so.relationship(backref='set_logs')
-    workout_plan_exercise: so.Mapped['WorkoutPlanExercise'] = so.relationship(backref='set_logs')
+    workout_plan_exercise: so.Mapped[Optional['WorkoutPlanExercise']] = so.relationship(back_populates='set_logs')
 
     def __repr__(self):
         return f'<SetLog {self.id}: User {self.user_id}, Exercise {self.exercise_id}, Set {self.set_number}>'
@@ -362,6 +363,7 @@ class WorkoutSession(db.Model):
     total_weight: so.Mapped[float] = so.mapped_column(default=0.0)
 
     is_completed: so.Mapped[bool] = so.mapped_column(default=False)
+    is_archived: so.Mapped[bool] = so.mapped_column(sa.Boolean, default=False)
 
     user: so.Mapped['User'] = so.relationship(backref='workout_sessions')
     workout_plan: so.Mapped['WorkoutPlan'] = so.relationship(backref='workout_sessions')

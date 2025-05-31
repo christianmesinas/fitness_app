@@ -51,12 +51,12 @@ def index():
         logger.debug(f"Redirect naar onboarding-stap: {onboarding_redirect}")
         return redirect(onboarding_redirect)
 
-    workout_plans = WorkoutPlan.query.filter_by(user_id=current_user.id).all()
+    # Only fetch non-archived workout plans
+    workout_plans = WorkoutPlan.query.filter_by(user_id=current_user.id, is_archived=False).all()
 
     workout_data = []
     for plan in workout_plans:
         exercises = plan.exercises.order_by(WorkoutPlanExercise.order).all()  # lijst van WorkoutPlanExercise objecten
-        # Haal de oefening-objecten eruit
         exercise_objs = [entry.exercise for entry in exercises]
         workout_data.append({
             'plan': plan,
@@ -497,15 +497,17 @@ def delete_exercise_from_plan(plan_id):
             logger.error(f"User {current_user.id} not authorized for plan {plan_id}")
             return redirect(url_for('main.index'))
 
+        # Delete the WorkoutPlanExercise record
         logger.debug(f"Deleting exercise {wpe_id} with exercise_id {wpe.exercise_id} from plan {plan_id}")
         db.session.delete(wpe)
 
-        remaining_exercises = WorkoutPlanExercise.query.filter_by(workout_plan_id=plan_id).order_by(
-            WorkoutPlanExercise.order).all()
-        logger.debug(f"Remaining exercises: {[e.id for e in remaining_exercises]}")
-        for idx, exercise in enumerate(remaining_exercises):
-            exercise.order = idx
-            db.session.add(exercise)
+        # Reorder remaining exercises
+        with db.session.no_autoflush:
+            remaining_exercises = WorkoutPlanExercise.query.filter_by(workout_plan_id=plan_id).order_by(
+                WorkoutPlanExercise.order).all()
+            for idx, exercise in enumerate(remaining_exercises):
+                exercise.order = idx
+                db.session.add(exercise)
 
         try:
             db.session.commit()
@@ -1119,31 +1121,27 @@ def complete_workout(plan_id):
 def workout_history():
     page = request.args.get('page', 1, type=int)
 
-    # Haal workout sessions op met alleen workout_plan eager loading
     sessions = WorkoutSession.query.filter_by(
         user_id=current_user.id,
-        is_completed=True
+        is_completed=True,
+        is_archived=False  # Alleen niet-gearchiveerde sessies
     ).options(
         db.joinedload(WorkoutSession.workout_plan)
     ).order_by(WorkoutSession.completed_at.desc()).paginate(
         page=page, per_page=10, error_out=False
     )
 
-    # Bereken statistieken voor elke sessie
     for session in sessions.items:
         if not hasattr(session, '_stats_calculated'):
-            # Haal voltooide sets op
             completed_sets = SetLog.query.filter_by(
                 workout_session_id=session.id,
                 completed=True
             ).all()
 
-            # Bereken statistieken
             session.total_sets_count = len(completed_sets)
             session.total_reps_count = sum(s.reps for s in completed_sets)
             session.total_weight_count = sum(s.weight * s.reps for s in completed_sets)
 
-            # Bereken duur
             if session.completed_at and session.started_at:
                 duration = session.completed_at - session.started_at
                 session.duration_minutes = round(duration.total_seconds() / 60)
@@ -1341,3 +1339,83 @@ def get_workout_progress(session_id):
     })
 
 
+@main.route('/archive_workout_session/<session_id>', methods=['POST'])
+@login_required
+def archive_workout_session(session_id):
+    logger.debug(f"Archiving workout session: session_id={session_id}, user_id={current_user.id}")
+
+    workout_session = WorkoutSession.query.get_or_404(session_id)
+    if workout_session.user_id != current_user.id:
+        logger.error(
+            f"Unauthorized access: session_user_id={workout_session.user_id}, current_user_id={current_user.id}")
+        flash("Je hebt geen toegang tot deze workout sessie.", "error")
+        return redirect(url_for('main.workout_history'))
+
+    workout_session.is_archived = True
+    try:
+        db.session.commit()
+        flash("Workout succesvol gearchiveerd.", "success")
+        logger.info(f"Workout session archived: session_id={session_id}")
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error archiving workout session: {str(e)}")
+        flash("Fout bij het archiveren van de workout.", "error")
+
+    return redirect(url_for('main.workout_history'))
+
+@main.route('/archive_workout/<int:workout_id>', methods=['POST'])
+@login_required
+def archive_workout(workout_id):
+    logger.debug(f"Archiving workout: workout_id={workout_id}, user_id={current_user.id}")
+    workout = WorkoutPlan.query.get_or_404(workout_id)
+
+    if workout.user_id != current_user.id:
+        logger.error(f"Unauthorized access: user_id={current_user.id}, workout_user_id={workout.user_id}")
+        return jsonify({'success': False, 'message': 'Je hebt geen toegang tot deze workout.'}), 403
+
+    workout.is_archived = True
+    try:
+        db.session.commit()
+        logger.info(f"Workout archived: workout_id={workout_id}")
+        return jsonify({'success': True, 'message': 'Workout succesvol gearchiveerd.'})
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error archiving workout: {str(e)}")
+        return jsonify({'success': False, 'message': f'Fout bij het archiveren: {str(e)}'}), 500
+
+@main.route('/archived_plans')
+@login_required
+def archived_plans():
+    logger.debug(f"Archived plans route aangeroepen voor {current_user.name}")
+    workout_plans = WorkoutPlan.query.filter_by(user_id=current_user.id, is_archived=True).all()
+
+    workout_data = []
+    for plan in workout_plans:
+        exercises = plan.exercises.order_by(WorkoutPlanExercise.order).all()
+        exercise_objs = [entry.exercise for entry in exercises]
+        workout_data.append({
+            'plan': plan,
+            'exercises': exercise_objs
+        })
+
+    return render_template('archived_workouts.html', workout_data=workout_data)
+
+@main.route('/unarchive_workout/<int:workout_id>', methods=['POST'])
+@login_required
+def unarchive_workout(workout_id):
+    logger.debug(f"Unarchiving workout: workout_id={workout_id}, user_id={current_user.id}")
+    workout = WorkoutPlan.query.get_or_404(workout_id)
+
+    if workout.user_id != current_user.id:
+        logger.error(f"Unauthorized access: user_id={current_user.id}, workout_user_id={workout.user_id}")
+        return jsonify({'success': False, 'message': 'Je hebt geen toegang tot deze workout.'}), 403
+
+    workout.is_archived = False
+    try:
+        db.session.commit()
+        logger.info(f"Workout unarchived: workout_id={workout_id}")
+        return jsonify({'success': True, 'message': 'Workout succesvol hersteld.'})
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error unarchiving workout: {str(e)}")
+        return jsonify({'success': False, 'message': f'Fout bij het herstellen: {str(e)}'}), 500

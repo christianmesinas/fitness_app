@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+    <h1>Gearchiveerde Workout Plannen</h1>
+    {% if workout_data %}
+        <section class="workout-blok-section">
+            {% for workout_info in workout_data %}
+                <section class="workout-block" id="workout-{{ workout_info.plan.id }}">
+                    <h2>{{ workout_info.plan.name }}</h2>
+                    <ul>
+                        {% for exercise in workout_info.exercises %}
+                            <li>{{ exercise.name }}</li>
+                        {% else %}
+                            <li>Geen oefeningen toegevoegd</li>
+                        {% endfor %}
+                    </ul>
+                    <a href="{{ url_for('main.start_workout', plan_id=workout_info.plan.id) }}" class="orange-btn workout-start-btn">Start</a>
+                    <div class="setting-dots-wrapper">
+                        <a href="#" class="setting-dots-workout">...</a>
+                        <div class="settings-menu">
+                            <a href="{{ url_for('main.edit_workout', plan_id=workout_info.plan.id) }}">Bewerk workout</a>
+                            <a href="#" class="unarchive-workout" data-workout-id="{{ workout_info.plan.id }}">Herstel workout</a>
+                        </div>
+                    </div>
+                </section>
+            {% else %}
+                <p>Er zijn geen gearchiveerde workout plannen.</p>
+            {% endfor %}
+        </section>
+    {% else %}
+        <p>Er zijn geen gearchiveerde workout plannen.</p>
+    {% endif %}
+    <a href="{{ url_for('main.index') }}" class="orange-btn-outline home-btn">Terug naar Home</a>
+    <script src="{{ url_for('static', filename='js/menu.js') }}" defer></script>
+{% endblock %}

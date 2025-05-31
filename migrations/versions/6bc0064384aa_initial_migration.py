@@ -1,8 +1,8 @@
 """Initial migration
 
-Revision ID: f936bc900558
+Revision ID: 6bc0064384aa
 Revises: 
-Create Date: 2025-05-20 12:27:49.732874
+Create Date: 2025-05-31 22:58:10.958648
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'f936bc900558'
+revision = '6bc0064384aa'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -52,6 +52,8 @@ def upgrade():
     sa.Column('fitness_goal', sa.Float(), nullable=True),
     sa.Column('weekly_workouts', sa.Integer(), nullable=True),
     sa.Column('registration_step', sa.String(length=20), nullable=True),
+    sa.Column('current_workout_plan_id', sa.Integer(), nullable=True),
+    sa.ForeignKeyConstraint(['current_workout_plan_id'], ['workout_plan.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('auth0_id'),
     sa.UniqueConstraint('sub')
@@ -60,21 +62,11 @@ def upgrade():
         batch_op.create_index(batch_op.f('ix_user_email'), ['email'], unique=True)
         batch_op.create_index(batch_op.f('ix_user_name'), ['name'], unique=False)
 
-    op.create_table('exercise_muscle_association',
-    sa.Column('exercise_id', sa.String(length=50), nullable=False),
-    sa.Column('muscle_id', sa.Integer(), nullable=False),
-    sa.Column('is_primary', sa.Boolean(), nullable=False),
-    sa.ForeignKeyConstraint(['exercise_id'], ['exercise.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['muscle_id'], ['exercise_muscle.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('exercise_id', 'muscle_id')
-    )
     op.create_table('workout_plan',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.Column('start_date', sa.DateTime(), nullable=True),
-    sa.Column('end_date', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -103,15 +95,23 @@ def upgrade():
         batch_op.create_index(batch_op.f('ix_exercise_log_user_id'), ['user_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_exercise_log_workout_plan_id'), ['workout_plan_id'], unique=False)
 
+    op.create_table('exercise_muscle_association',
+    sa.Column('exercise_id', sa.String(length=50), nullable=False),
+    sa.Column('muscle_id', sa.Integer(), nullable=False),
+    sa.Column('is_primary', sa.Boolean(), nullable=False),
+    sa.ForeignKeyConstraint(['exercise_id'], ['exercise.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['muscle_id'], ['exercise_muscle.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('exercise_id', 'muscle_id')
+    )
     op.create_table('workout_plan_exercise',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('workout_plan_id', sa.Integer(), nullable=False),
     sa.Column('exercise_id', sa.String(length=50), nullable=False),
-    sa.Column('day_of_week', sa.String(length=20), nullable=True),
     sa.Column('sets', sa.Integer(), nullable=True),
     sa.Column('reps', sa.Integer(), nullable=True),
     sa.Column('duration', sa.Integer(), nullable=True),
     sa.Column('order', sa.Integer(), nullable=False),
+    sa.Column('weight', sa.Float(), nullable=True),
     sa.ForeignKeyConstraint(['exercise_id'], ['exercise.id'], ),
     sa.ForeignKeyConstraint(['workout_plan_id'], ['workout_plan.id'], ),
     sa.PrimaryKeyConstraint('id')
@@ -120,16 +120,54 @@ def upgrade():
         batch_op.create_index(batch_op.f('ix_workout_plan_exercise_exercise_id'), ['exercise_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_workout_plan_exercise_workout_plan_id'), ['workout_plan_id'], unique=False)
 
+    op.create_table('workout_sessions',
+    sa.Column('id', sa.String(length=36), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('workout_plan_id', sa.Integer(), nullable=False),
+    sa.Column('started_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('completed_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('duration_minutes', sa.Integer(), nullable=True),
+    sa.Column('total_sets', sa.Integer(), nullable=False),
+    sa.Column('total_reps', sa.Integer(), nullable=False),
+    sa.Column('total_weight', sa.Float(), nullable=False),
+    sa.Column('is_completed', sa.Boolean(), nullable=False),
+    sa.Column('is_archived', sa.Boolean(), nullable=True),
+    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
+    sa.ForeignKeyConstraint(['workout_plan_id'], ['workout_plan.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('set_logs',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('workout_plan_id', sa.Integer(), nullable=True),
+    sa.Column('exercise_id', sa.String(length=50), nullable=False),
+    sa.Column('workout_plan_exercise_id', sa.Integer(), nullable=True),
+    sa.Column('set_number', sa.Integer(), nullable=False),
+    sa.Column('reps', sa.Integer(), nullable=False),
+    sa.Column('weight', sa.Float(), nullable=False),
+    sa.Column('completed', sa.Boolean(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('completed_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('workout_session_id', sa.String(length=36), nullable=True),
+    sa.ForeignKeyConstraint(['exercise_id'], ['exercise.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['workout_plan_exercise_id'], ['workout_plan_exercise.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['workout_plan_id'], ['workout_plan.id'], ondelete='SET NULL'),
+    sa.PrimaryKeyConstraint('id')
+    )
     # ### end Alembic commands ###
 
 
 def downgrade():
     # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_table('set_logs')
+    op.drop_table('workout_sessions')
     with op.batch_alter_table('workout_plan_exercise', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_workout_plan_exercise_workout_plan_id'))
         batch_op.drop_index(batch_op.f('ix_workout_plan_exercise_exercise_id'))
 
     op.drop_table('workout_plan_exercise')
+    op.drop_table('exercise_muscle_association')
     with op.batch_alter_table('exercise_log', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_exercise_log_workout_plan_id'))
         batch_op.drop_index(batch_op.f('ix_exercise_log_user_id'))
@@ -140,7 +178,6 @@ def downgrade():
         batch_op.drop_index(batch_op.f('ix_workout_plan_user_id'))
 
     op.drop_table('workout_plan')
-    op.drop_table('exercise_muscle_association')
     with op.batch_alter_table('user', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_user_name'))
         batch_op.drop_index(batch_op.f('ix_user_email'))

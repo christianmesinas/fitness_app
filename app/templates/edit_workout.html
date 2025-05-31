@@ -7,6 +7,9 @@
   </a>
 </div>
 
+<!-- CSRF Token voor JavaScript -->
+<meta name="csrf-token" content="{{ csrf_token() }}">
+
 <section class="header-section">
   <form method="POST" action="{{ url_for('main.edit_workout', plan_id=workout_plan.id) }}" class="add-workout-form" id="main-workout-form">
     {{ form.hidden_tag() }}
@@ -29,17 +32,6 @@
           {% set exercise_obj = exercises_dict.get(plan_exercise.exercise_id|string) %}
           <section class="active-workout-block" data-exercise-id="{{ plan_exercise.exercise_id }}">
             <!-- Drie-puntjes knop -->
-            <div class="setting-dots-workout">⋯</div>
-
-            <!-- Instellingenmenu -->
-            <div class="settings-menu" style="display:none;">
-              <button type="button" class="btn-delete-exercise"
-                      data-plan-id="{{ workout_plan.id }}"
-                      data-wpe-id="{{ plan_exercise.id }}"
-                      style="background:none; border:none; color:red; cursor:pointer; padding:5px 10px;">
-                Verwijder oefening
-              </button>
-            </div>
 
             {% if exercise_obj and exercise_obj.images_list %}
               <img class="exercise-block-img" src="{{ url_for('static', filename='img/exercises/' + exercise_obj.images_list[0]) }}" alt="{{ exercise_obj.name }}">
@@ -101,13 +93,12 @@
     </section>
   </form>
 
-  <!-- Separate form for workout deletion -->
-  <form method="POST" action="{{ url_for('main.remove_workout', plan_id=workout_plan.id) }}"
-        onsubmit="return confirm('Weet je zeker dat je deze workout wilt verwijderen?');"
-        style="margin-top: 20px;">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit" class="btn btn-danger">Verwijder hele workout</button>
-  </form>
+  <!-- Archiveer knop in plaats van verwijder knop -->
+  <button class="btn btn-warning archive-workout-btn"
+          data-workout-id="{{ workout_plan.id }}"
+          style="margin-top: 20px;">
+    📁 Archiveer workout
+  </button>
 
   <!-- Hidden form for exercise deletion -->
   <form method="POST" id="delete-exercise-form" style="display:none;">
@@ -116,8 +107,81 @@
   </form>
 </section>
 
-
 <script>
+// Archive workout functionaliteit
+document.addEventListener('DOMContentLoaded', function() {
+    const archiveBtn = document.querySelector('.archive-workout-btn');
+
+    if (archiveBtn) {
+        archiveBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+
+            if (!confirm('Weet je zeker dat je deze workout wilt archiveren? Deze wordt verplaatst naar je gearchiveerde workouts.')) {
+                return;
+            }
+
+            const workoutId = this.getAttribute('data-workout-id');
+            console.log('🎯 Archiveren workout:', workoutId);
+
+            // CSRF token ophalen
+            const csrfToken = document.querySelector('meta[name=csrf-token]')?.getAttribute('content');
+
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+
+            // Disable button tijdens request
+            this.disabled = true;
+            this.textContent = '⏳ Archiveren...';
+
+            fetch(`/archive_workout/${workoutId}`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({})
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                }
+                throw new Error(`HTTP error! status: ${response.status}`);
+            })
+            .then(data => {
+                console.log('✅ Workout gearchiveerd:', data);
+
+                // Success feedback
+                this.textContent = '✅ Gearchiveerd!';
+                this.classList.remove('btn-warning');
+                this.classList.add('btn-success');
+
+                // Redirect naar home na 1.5 seconden
+                setTimeout(() => {
+                    window.location.href = '{{ url_for("main.index") }}';
+                }, 1500);
+            })
+            .catch(error => {
+                console.error('❌ Archiveer fout:', error);
+
+                // Error feedback
+                this.textContent = '❌ Fout opgetreden';
+                this.classList.remove('btn-warning');
+                this.classList.add('btn-danger');
+                this.disabled = false;
+
+                // Reset na 3 seconden
+                setTimeout(() => {
+                    this.textContent = '📁 Archiveer workout';
+                    this.classList.remove('btn-danger');
+                    this.classList.add('btn-warning');
+                }, 3000);
+            });
+        });
+    }
+});
+
 // JavaScript voor toggle menu bij de drie-puntjes
 document.querySelectorAll('.setting-dots-workout').forEach(dot => {
   dot.addEventListener('click', (e) => {

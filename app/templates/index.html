@@ -20,47 +20,43 @@
         </section>
 
 
-      <section class="workout-blok-section">
-        {% for workout_info in workout_data %}
-            <section class="workout-block">
-                <h2>{{ workout_info.plan.name }}</h2>
-
-                <ul>
+<section class="workout-blok-section">
+    {% for workout_info in workout_data %}
+        <section class="workout-block" id="workout-{{ workout_info.plan.id }}">
+            <h2>{{ workout_info.plan.name }}</h2>
+            <ul>
                 {% for exercise in workout_info.exercises %}
                     <li>{{ exercise.name }}</li>
                 {% else %}
                     <li>Geen oefeningen toegevoegd</li>
                 {% endfor %}
-                </ul>
-
-<a href="{{ url_for('main.start_workout', plan_id=workout_info.plan.id) }}" class="orange-btn workout-start-btn">Start</a>
-
-                <div class="setting-dots-wrapper">
-                    <a href="#" class="setting-dots-workout">...</a>
-
-                    <div class="settings-menu">
-                        <a href="{{ url_for('main.edit_workout', plan_id=workout_info.plan.id) }}">Bewerk workout</a>
-                        <form method="POST" action="{{ url_for('main.delete_workout', workout_id=workout_info.plan.id) }}">
-                            {{ delete_form.csrf_token }}
-                            <button type="submit">Verwijder workout</button>
-                        </form>
-                    </div>
+            </ul>
+            <a href="{{ url_for('main.start_workout', plan_id=workout_info.plan.id) }}" class="orange-btn workout-start-btn">Start</a>
+            <div class="setting-dots-wrapper">
+                <a href="#" class="setting-dots-workout">...</a>
+                <div class="settings-menu">
+                    <a href="{{ url_for('main.edit_workout', plan_id=workout_info.plan.id) }}">Bewerk workout</a>
+                    <a href="#" class="archive-workout" data-workout-id="{{ workout_info.plan.id }}">Verberg workout</a>
                 </div>
-            </section>
-        {% else %}
-            <p>Er zijn nog geen workouts in je huidige plan.</p>
-        {% endfor %}
-          <a href="{{ url_for('main.add_workout') }}" class="orange-btn-outline add-new-workout-btn home-btn">Add new workout</a>
-<a href="{{ url_for('main.workout_history') }}" class="orange-btn-outline add-new-workout-btn home-btn">
-    📅 Bekijk Workout Historiek
-</a>
-
+            </div>
         </section>
+    {% else %}
+        <p>Er zijn nog geen workouts in je huidige plan.</p>
+    {% endfor %}
+    <a href="{{ url_for('main.add_workout') }}" class="orange-btn-outline add-new-workout-btn home-btn">Add new workout</a>
+    <a href="{{ url_for('main.workout_history') }}" class="orange-btn-outline add-new-workout-btn home-btn">
+        📅 Bekijk Workout Historiek
+    </a>
+<a href="{{ url_for('main.archived_plans') }}" class="orange-btn-outline home-btn">📁 Bekijk Gearchiveerde Workouts</a>
+</section>
 
 
     {% else %}
             <p>je bent niet ingelogd</p>
     {% endif %}
+
+
+        <script src="{{ url_for('static', filename='js/archive.js') }}" defer></script>
 
         <script src="{{ url_for('static', filename='js/menu.js') }}" defer></script>
 
