@@ -742,11 +742,11 @@ def search_exercise():
         if form.search_term.data:
             query = query.filter(Exercise.name.ilike(f"%{form.search_term.data}%"))
         if form.difficulty.data:
-            query = query.filter_by(difficulty=form.difficulty.data)
+            query = query.filter_by(level=form.difficulty.data)
         if form.mechanic.data:
             query = query.filter_by(mechanic=form.mechanic.data)
-        if form.exercise_type.data:
-            query = query.filter_by(exercise_type=form.exercise_type.data)
+        if form.equipment.data:
+            query = query.filter_by(equipment=form.equipment.data)
         if form.category.data:
             query = query.filter_by(category=form.category.data)
 

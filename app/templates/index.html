@@ -4,19 +4,7 @@
 {% block content %}
     {% if current_user %}
         <section class="home-intro">
-            <h1 class="home-welcome">Hi, {{ current_user.name }}!</h1>
-            <section class="home-stats-section">
-                <div class="home-stats">
-                    <p>This week</p>
-                    <p class="stats-large-number">4</p>
-                    <p>workouts</p>
-                </div>
-                <div class="home-stats">
-                    <p>This month</p>
-                    <p class="stats-large-number">12</p>
-                    <p>workouts</p>
-                </div>
-            </section>
+            <h1 class="home-welcome">Hi, {{ current_user.name }}! Welcome to fittrack</h1>
         </section>
 
 

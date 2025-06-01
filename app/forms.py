@@ -85,7 +85,7 @@ class SearchExerciseForm(FlaskForm):
         ('STRETCHING', 'Stretching'),
         ('STRONGMAN', 'Strongman')
     ])
-    exercise_type = SelectField('Equipment', choices=[
+    equipment = SelectField('Equipment', choices=[
         ('', 'Select Equipment'),
         ('BANDS', 'Resistance Bands'),
         ('BARBELL', 'Barbell'),
