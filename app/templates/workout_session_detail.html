@@ -24,26 +24,26 @@
             <div class="card mb-3">
                 <div class="card-body">
                     <h5 class="card-title">{{ group.exercise.name }}</h5>
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Set</th>
-                                <th>Reps</th>
-                                <th>Gewicht (kg)</th>
-                                <th>Voltooid</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for set_log in group.sets %}
-                                <tr>
-                                    <td>{{ set_log.set_number + 1 }}</td>
-                                    <td>{{ set_log.reps }}</td>
-                                    <td>{{ set_log.weight }}</td>
-                                    <td>{{ 'Ja' if set_log.completed else 'Nee' }}</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                 <table class="table">
+    <thead>
+        <tr>
+            <th>Set</th>
+            <th>Reps</th>
+            <th>Gewicht (kg)</th>
+            <th>Voltooid</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for set_log in group.sets %}
+            <tr>
+                <td>{{ set_log.set_number + 1 }}</td> <!-- +1 om te beginnen bij 1 -->
+                <td>{{ set_log.reps }}</td>
+                <td>{{ set_log.weight }}</td>
+                <td>{{ 'Ja' if set_log.completed else 'Nee' }}</td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
                     <a href="{{ url_for('main.exercise_detail', exercise_id=group.exercise.id) }}" class="btn btn-outline-secondary">Details</a>
                 </div>
             </div>

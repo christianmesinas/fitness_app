@@ -911,24 +911,34 @@ def start_workout(plan_id):
                            session_id=session_id,
                            form=form)
 
+
 @main.route('/save_workout/<int:plan_id>', methods=['POST'])
 @login_required
 def save_workout(plan_id):
-    logger.debug(f"Saving workout for plan_id={plan_id}, user_id={current_user.id}, session_id={session.get('current_workout_session')}")
+    logger.debug(
+        f"Saving workout for plan_id={plan_id}, user_id={current_user.id}, session_id={session.get('current_workout_session')}")
     form = ActiveWorkoutForm()
     if not form.validate_on_submit():
         errors = form.errors
         logger.error(f"Form validation failed: {errors}")
         return jsonify({'success': False, 'message': f'Ongeldige formuliergegevens: {errors}'}), 400
+
     workout_plan = WorkoutPlan.query.get_or_404(plan_id)
     if workout_plan.user_id != current_user.id:
         logger.error(f"Unauthorized access to plan_id={plan_id}")
         return jsonify({'success': False, 'message': 'Je hebt geen toegang tot deze workout.'}), 403
+
     wpes = WorkoutPlanExercise.query.filter_by(workout_plan_id=plan_id).all()
     session_id = session.get('current_workout_session')
     if not session_id:
         logger.error("No active workout session found")
         return jsonify({'success': False, 'message': 'Geen actieve workout sessie gevonden.'}), 400
+
+    # VERWIJDER BESTAANDE SETLOGS VOOR DEZE SESSIE EERST
+    existing_logs = SetLog.query.filter_by(workout_session_id=session_id).all()
+    for log in existing_logs:
+        db.session.delete(log)
+
     for wpe in wpes:
         set_num = 0
         while True:
@@ -947,21 +957,23 @@ def save_workout(plan_id):
                         exercise_id=wpe.exercise_id,
                         workout_plan_exercise_id=wpe.id,
                         workout_session_id=session_id,
-                        set_number=set_num + 1,
+                        set_number=set_num,  # GEEN +1 MEER
                         reps=reps,
                         weight=weight,
                         completed=True,
                         completed_at=datetime.now(timezone.utc)
                     )
                     db.session.add(log)
-                    logger.debug(f"Added SetLog: wpe_id={wpe.id}, set_num={set_num+1}, reps={reps}, weight={weight}")
+                    logger.debug(f"Added SetLog: wpe_id={wpe.id}, set_num={set_num}, reps={reps}, weight={weight}")
             set_num += 1
+
     try:
         db.session.commit()
     except Exception as e:
         db.session.rollback()
         logger.error(f"Database error: {str(e)}")
         return jsonify({'success': False, 'message': f'Database fout: {str(e)}'}), 500
+
     workout_session = WorkoutSession.query.get(session_id)
     if workout_session:
         workout_session.calculate_statistics()
@@ -972,6 +984,7 @@ def save_workout(plan_id):
             db.session.rollback()
             logger.error(f"Statistics update error: {str(e)}")
             return jsonify({'success': False, 'message': f'Statistics update fout: {str(e)}'}), 500
+
     logger.info("Workout succesvol opgeslagen!")
     return jsonify({'success': True, 'message': 'Workout succesvol opgeslagen!'})
 
