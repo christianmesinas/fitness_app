@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="top-bar">
+    <a href="{{ url_for('main.profile') }}">
+        <img src="{{ url_for('static', filename='img/back.svg') }}" alt="Terug knop" class="back-icon"/>
+    </a>
+</div>
+
+<section class="header-section">
+    <h1>Volledige Gewichtsgeschiedenis</h1>
+    <p class="text-muted">Alle jouw gewichtsmetingen op chronologische volgorde</p>
+</section>
+
+<section class="profile-section">
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">
+                Alle gewichtsmetingen 
+                <span class="badge bg-primary">{{ weights.total }} metingen</span>
+            </h5>
+            
+            {% if weights.items %}
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Datum & Tijd</th>
+                            <th>Gewicht</th>
+                            <th>Verschil</th>
+                            <th>Notities</th>
+                            <th>Actie</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for weight in weights.items %}
+                        <tr>
+                            <td>
+                                <strong>{{ weight.logged_at.strftime('%d-%m-%Y') }}</strong><br>
+                                <small class="text-muted">{{ weight.logged_at.strftime('%H:%M') }}</small>
+                            </td>
+                            <td><strong>{{ weight.weight }} kg</strong></td>
+                            <td>
+                                {% if not loop.last %}
+                                    {% set next_weight = weights.items[loop.index].weight %}
+                                    {% set diff = weight.weight - next_weight %}
+                                    {% if diff != 0 %}
+                                        <span class="badge {% if diff < 0 %}bg-success{% else %}bg-warning{% endif %}">
+                                            {% if diff > 0 %}+{% endif %}{{ "%.1f"|format(diff) }} kg
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if weight.notes %}
+                                    {{ weight.notes[:50] }}{% if weight.notes|length > 50 %}...{% endif %}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <form method="POST" action="{{ url_for('main.delete_weight', weight_id=weight.id) }}" style="display:inline;">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                            onclick="return confirm('Weet je zeker dat je deze meting wilt verwijderen?')"
+                                            title="Verwijder meting">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Paginatie -->
+            {% if weights.pages > 1 %}
+            <nav aria-label="Gewichtsgeschiedenis paginatie" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if weights.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('main.weight_history', page=weights.prev_num) }}">Vorige</a>
+                        </li>
+                    {% endif %}
+                    
+                    {% for page_num in weights.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != weights.page %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('main.weight_history', page=page_num) }}">{{ page_num }}</a>
+                                </li>
+                            {% else %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ page_num }}</span>
+                                </li>
+                            {% endif %}
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if weights.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('main.weight_history', page=weights.next_num) }}">Volgende</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+            
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-weight fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">Nog geen gewichtsmetingen</h5>
+                <p class="text-muted">Begin met het bijhouden van je gewicht via je profiel</p>
+                <a href="{{ url_for('main.profile') }}" class="btn btn-primary">
+                    Naar Profiel
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endblock %}

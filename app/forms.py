@@ -1,6 +1,7 @@
 from flask import flash
 from flask_wtf import FlaskForm
 from wtforms import FieldList, FormField, HiddenField, StringField, FloatField, SelectField, IntegerField, SubmitField, ValidationError
+from wtforms.fields.simple import TextAreaField
 from wtforms.validators import DataRequired, Length, NumberRange, Optional
 from wtforms.widgets import Input
 import logging as logger
@@ -33,10 +34,17 @@ class ExerciseForm(FlaskForm):
         csrf = False  # Dit schakelt CSRF uit voor dit subformulier
 
 class EditProfileForm(FlaskForm):
-    name = StringField('Name', validators=[DataRequired(), Length(min=4, max=20)])
-    current_weight = FloatField('Current Weight (kg)', validators=[NumberRange(min=20, max=300)])
-    weekly_workouts = IntegerField('Weekly Workouts', validators=[NumberRange(min=0, max=7)])
-    submit = SubmitField('Save')
+    name = StringField('Naam', validators=[DataRequired(), Length(min=1, max=64)])
+    current_weight = FloatField('Huidige gewicht (kg)',
+                                validators=[Optional(), NumberRange(min=20, max=300,
+                                                                    message="Gewicht moet tussen 20 en 300 kg zijn")])
+    weekly_workouts = IntegerField('Weekelijkse workouts',
+                                   validators=[Optional(), NumberRange(min=0, max=20,
+                                                                       message="Aantal workouts moet tussen 0 en 20 zijn")])
+    fitness_goal = FloatField('Doel gewicht (kg)',
+                              validators=[Optional(), NumberRange(min=20, max=300,
+                                                                  message="Doel gewicht moet tussen 20 en 300 kg zijn")])
+    submit = SubmitField('Profiel bijwerken')
 
     def __init__(self, original_name, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -48,6 +56,14 @@ class EditProfileForm(FlaskForm):
             user = User.query.filter_by(name=name.data).first()
             if user is not None:
                 raise ValidationError('Please use a different name.')
+
+class AddWeightForm(FlaskForm):
+    weight = FloatField('Gewicht (kg)',
+                       validators=[DataRequired(), NumberRange(min=20, max=300,
+                       message="Gewicht moet tussen 20 en 300 kg zijn")])
+    notes = TextAreaField('Notities (optioneel)',
+                         validators=[Optional(), Length(max=200)])
+    submit = SubmitField('Gewicht toevoegen')
 
 class NameForm(FlaskForm):
     name = StringField('Name', validators=[DataRequired(), Length(min=2, max=50)])

@@ -91,8 +91,10 @@ class User(db.Model):
     fitness_goal: so.Mapped[Optional[float]] = so.mapped_column()
     weekly_workouts: so.Mapped[Optional[int]] = so.mapped_column()
     registration_step: so.Mapped[Optional[str]] = so.mapped_column(sa.String(20), default='name')
+    weight_logs: so.WriteOnlyMapped['WeightLog'] = so.relationship(back_populates='user', cascade="all, delete-orphan")
 
     exercise_logs: so.WriteOnlyMapped['ExerciseLog'] = so.relationship(back_populates='user', cascade="all, delete-orphan")
+
     # Verwijzing naar alle plannen van deze gebruiker
     workout_plans: so.WriteOnlyMapped['WorkoutPlan'] = so.relationship(
         back_populates='user',
@@ -146,6 +148,20 @@ exercise_muscle_association = sa.Table(
     sa.Column('muscle_id', sa.Integer, sa.ForeignKey('exercise_muscle.id', ondelete='CASCADE'), primary_key=True),
     sa.Column('is_primary', sa.Boolean, nullable=False)
 )
+
+
+class WeightLog(db.Model):
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('user.id'), nullable=False)
+    weight: so.Mapped[float] = so.mapped_column(nullable=False)
+    logged_at: so.Mapped[datetime] = so.mapped_column(default=lambda: datetime.now(timezone.utc))
+    notes: so.Mapped[Optional[str]] = so.mapped_column(sa.String(200))
+
+    user: so.Mapped['User'] = so.relationship('User', back_populates='weight_logs')
+
+    def __repr__(self):
+        return f'<WeightLog {self.weight}kg on {self.logged_at.date()}>'
+
 
 class ExerciseMuscle(db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)

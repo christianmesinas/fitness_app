@@ -1,15 +1,303 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <table class="table table-hover">
-        <tr>
-            <td>
-                <h1>{{ 'User' }}: {{ user.username }}</h1>
+<div class="top-bar">
+    <a href="{{ url_for('main.index') }}">
+        <img src="{{ url_for('static', filename='img/back.svg') }}" alt="Terug knop" class="back-icon"/>
+    </a>
+</div>
 
-                {% if user == current_user %}
-                <p><a href="{{ url_for('main.profile') }}">{{ 'Edit your profile' }}</a></p>
+<section class="header-section">
+    <h1>Profiel: {{ user.name or user.email }}</h1>
+</section>
+
+<section class="profile-section">
+    {% if user == current_user %}
+        <!-- Profiel bewerken -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Profiel informatie</h5>
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        {{ form.name.label(class="form-label") }}
+                        {{ form.name(class="form-control") }}
+                        {% if form.name.errors %}
+                            <div class="text-danger">
+                                {% for error in form.name.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.current_weight.label(class="form-label") }}
+                        <div class="input-group">
+                            {{ form.current_weight(class="form-control") }}
+                            <span class="input-group-text">kg</span>
+                        </div>
+                        {% if form.current_weight.errors %}
+                            <div class="text-danger">
+                                {% for error in form.current_weight.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.fitness_goal.label(class="form-label") }}
+                        <div class="input-group">
+                            {{ form.fitness_goal(class="form-control") }}
+                            <span class="input-group-text">kg</span>
+                        </div>
+                        {% if form.fitness_goal.errors %}
+                            <div class="text-danger">
+                                {% for error in form.fitness_goal.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.weekly_workouts.label(class="form-label") }}
+                        {{ form.weekly_workouts(class="form-control") }}
+                        {% if form.weekly_workouts.errors %}
+                            <div class="text-danger">
+                                {% for error in form.weekly_workouts.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.submit(class="orange-btn") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Gewicht toevoegen -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Gewicht bijhouden</h5>
+                <form method="POST">
+                    {{ weight_form.hidden_tag() }}
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ weight_form.weight.label(class="form-label") }}
+                                <div class="input-group">
+                                    {{ weight_form.weight(class="form-control") }}
+                                    <span class="input-group-text">kg</span>
+                                </div>
+                                {% if weight_form.weight.errors %}
+                                    <div class="text-danger">
+                                        {% for error in weight_form.weight.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ weight_form.notes.label(class="form-label") }}
+                                {{ weight_form.notes(class="form-control", rows="2") }}
+                                {% if weight_form.notes.errors %}
+                                    <div class="text-danger">
+                                        {% for error in weight_form.notes.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ weight_form.submit(class="orange-btn-outline") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Gewichtsgrafiek en Statistieken -->
+        {% if recent_weights %}
+        <div class="row mb-3">
+            <!-- Grafiek -->
+            <div class="col-lg-8">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            Gewichtsontwikkeling
+                            <button class="btn btn-sm btn-outline-primary float-end" onclick="refreshChart()">
+                                <i class="fas fa-sync-alt"></i> Ververs
+                            </button>
+                        </h5>
+                        <div class="text-center">
+                            <img id="weight-chart" src="data:image/png;base64,{{ chart_data }}"
+                                 class="img-fluid" alt="Gewichtsgrafiek" style="max-height: 400px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistieken -->
+            <div class="col-lg-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">Statistieken</h5>
+                        {% if weight_stats %}
+                        <div class="mb-3">
+                            <h6 class="text-muted">Huidige Status</h6>
+                            <p class="mb-1"><strong>Huidig gewicht:</strong> {{ "%.1f"|format(weight_stats.current_weight) }} kg</p>
+                            <p class="mb-1"><strong>Startgewicht:</strong> {{ "%.1f"|format(weight_stats.start_weight) }} kg</p>
+                            <p class="mb-2">
+                                <strong>Totale verandering:</strong>
+                                <span class="{% if weight_stats.total_change < 0 %}text-success{% elif weight_stats.total_change > 0 %}text-warning{% else %}text-muted{% endif %}">
+                                    {{ "%.1f"|format(weight_stats.total_change) }} kg
+                                </span>
+                            </p>
+                        </div>
+
+                        <div class="mb-3">
+                            <h6 class="text-muted">Gemiddelden</h6>
+                            <p class="mb-1"><strong>Gemiddeld gewicht:</strong> {{ "%.1f"|format(weight_stats.average_weight) }} kg</p>
+                            {% if weight_stats.recent_average %}
+                            <p class="mb-1"><strong>Afgelopen 30 dagen:</strong> {{ "%.1f"|format(weight_stats.recent_average) }} kg</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <h6 class="text-muted">Bereik</h6>
+                            <p class="mb-1"><strong>Laagste:</strong> {{ "%.1f"|format(weight_stats.min_weight) }} kg</p>
+                            <p class="mb-1"><strong>Hoogste:</strong> {{ "%.1f"|format(weight_stats.max_weight) }} kg</p>
+                        </div>
+
+                        <div>
+                            <h6 class="text-muted">Periode</h6>
+                            <p class="mb-1"><strong>Metingen:</strong> {{ weight_stats.total_measurements }}</p>
+                            <p class="mb-0"><strong>Periode:</strong> {{ weight_stats.measurement_period }} dagen</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Gewichtsgeschiedenis -->
+        {% if recent_weights %}
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">
+                    Gewichtsgeschiedenis
+                    <small class="text-muted">(Laatste 10 metingen)</small>
+                </h5>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Datum</th>
+                                <th>Gewicht</th>
+                                <th>Verschil</th>
+                                <th>Notities</th>
+                                <th>Actie</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for weight in recent_weights %}
+                            <tr>
+                                <td>{{ weight.logged_at.strftime('%d-%m-%Y %H:%M') }}</td>
+                                <td><strong>{{ weight.weight }} kg</strong></td>
+                                <td>
+                                    {% if loop.index < recent_weights|length %}
+                                        {% set prev_weight = recent_weights[loop.index].weight %}
+                                        {% set diff = weight.weight - prev_weight %}
+                                        {% if diff != 0 %}
+                                            <span class="badge {% if diff < 0 %}bg-success{% else %}bg-warning{% endif %}">
+                                                {{ "%.1f"|format(diff) }} kg
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ weight.notes or '-' }}</td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('main.delete_weight', weight_id=weight.id) }}" style="display:inline;">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Weet je zeker dat je deze meting wilt verwijderen?')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Alle metingen bekijken link -->
+                <div class="text-center mt-3">
+                    <a href="{{ url_for('main.weight_history') }}" class="btn btn-outline-primary">
+                        Alle metingen bekijken
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+    {% else %}
+        <!-- Publiek profiel -->
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Profiel informatie</h5>
+                <p><strong>Naam:</strong> {{ user.name or 'Niet ingesteld' }}</p>
+                <p><strong>Email:</strong> {{ user.email }}</p>
+                {% if user.current_weight %}
+                    <p><strong>Huidige gewicht:</strong> {{ user.current_weight }} kg</p>
                 {% endif %}
-            </td>
-        </tr>
-    </table>
+                {% if user.fitness_goal %}
+                    <p><strong>Doel gewicht:</strong> {{ user.fitness_goal }} kg</p>
+                {% endif %}
+                {% if user.weekly_workouts %}
+                    <p><strong>Weekelijkse workouts:</strong> {{ user.weekly_workouts }}</p>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+</section>
+
+<script>
+function refreshChart() {
+    fetch('/api/weight_chart')
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => {
+                    throw new Error(err.message || 'Network error');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Gebruik data.data voor je chart
+                console.log('Chart data:', data.data);
+            } else {
+                console.error('API error:', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error.message);
+        });
+}
+</script>
 {% endblock %}
