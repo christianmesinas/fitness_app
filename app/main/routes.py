@@ -442,9 +442,6 @@ def api_weight_chart():
             'message': str(e)
         }), 500
 
-
-
-
 @main.route('/weight_history')
 @login_required
 def weight_history():
@@ -458,63 +455,83 @@ def weight_history():
     return render_template('weight_history.html',
                            weights=weights,
                            user=current_user)
-
-@main.route('/add_exercise_to_plan/<int:plan_id>', methods=['POST'])
+@main.route('/workout/<int:plan_id>/add_exercise', methods=['POST'])
 @login_required
-def add_exercise_to_plan(plan_id):
-    data = request.get_json()
-    if not data or 'exercise_id' not in data:
-        logger.error(f"Missing exercise_id in request: {data}")
-        return jsonify({'success': False, 'message': 'Exercise ID is required'}), 400
+def add_exercise_to_workout(plan_id):
+    logger.debug(f"Add exercise to plan, user: {current_user.name}, user_id: {current_user.id}, plan_id: {plan_id}, request_data: {request.get_json()}")
 
-    try:
-        exercise_id = int(data['exercise_id'])
-    except (ValueError, TypeError):
-        logger.error(f"Invalid exercise_id: {data.get('exercise_id')}")
-        return jsonify({'success': False, 'message': 'Invalid exercise ID'}), 400
+    # Haal exercise_id uit JSON of URL
+    data = request.get_json(silent=True) or {}
+    exercise_id = data.get('exercise_id')
+    if not exercise_id:
+        try:
+            exercise_id = int(request.args.get('exercise_id') or request.form.get('exercise_id'))
+        except (ValueError, TypeError):
+            logger.error(f"Invalid or missing exercise_id: {data.get('exercise_id')}")
+            return jsonify({'success': False, 'message': 'Exercise ID is required'}), 400
 
+    # Haal optionele next URL op
     next_url = data.get('next') or url_for('main.edit_workout', plan_id=plan_id)
 
-    workout_plan = WorkoutPlan.query.get_or_404(plan_id)
-    if workout_plan.user_id != current_user.id:
-        logger.error(f"Unauthorized access: user={current_user.id}, plan_user={workout_plan.user_id}")
-        return jsonify({'success': False, 'message': 'Unauthorized access to workout plan'}), 403
-
-    exercise = Exercise.query.get(exercise_id)
-    if not exercise:
-        logger.error(f"Exercise not found: exercise_id={exercise_id}")
-        return jsonify({'success': False, 'message': 'Exercise not found'}), 404
-
-    # Check for duplicates
-    existing = WorkoutPlanExercise.query.filter_by(workout_plan_id=plan_id, exercise_id=exercise_id).first()
-    if existing:
-        logger.debug(f"Duplicate exercise: plan_id={plan_id}, exercise_id={exercise_id}")
-        return jsonify({'success': False, 'message': 'Exercise already in workout plan'}), 400
-
-    # Determine next order
-    max_order = db.session.query(db.func.max(WorkoutPlanExercise.order)).filter_by(workout_plan_id=plan_id).scalar() or -1
-    next_order = max_order + 1
-
-    new_exercise = WorkoutPlanExercise(
-        workout_plan_id=plan_id,
-        exercise_id=exercise_id,
-        sets=3,
-        reps=10,
-        weight=0.0,  # Changed to 0.0 to match /add_exercise
-        order=next_order
-    )
-    db.session.add(new_exercise)
-
     try:
+        # Speciale case voor tijdelijke workouts (plan_id=0)
+        if plan_id == 0:
+            if 'temp_exercises' not in session:
+                session['temp_exercises'] = []
+            if exercise_id not in session['temp_exercises']:
+                session['temp_exercises'].append(exercise_id)
+                session.modified = True
+                logger.debug(f"Added exercise_id={exercise_id} to session: {session['temp_exercises']}")
+            else:
+                logger.debug(f"Exercise_id={exercise_id} already in session")
+            return jsonify({'success': True, 'message': 'Exercise added to temporary workout'})
+
+        # Controleer workout plan
+        workout_plan = WorkoutPlan.query.get_or_404(plan_id)
+        if workout_plan.user_id != current_user.id:
+            logger.error(f"Unauthorized access: user={current_user.id}, plan_user={workout_plan.user_id}")
+            return jsonify({'success': False, 'message': 'Unauthorized access to workout plan'}), 403
+
+        # Controleer oefening
+        exercise = Exercise.query.get_or_404(exercise_id)
+
+        # Controleer op duplicaten
+        existing = WorkoutPlanExercise.query.filter_by(workout_plan_id=plan_id, exercise_id=exercise_id).first()
+        if existing:
+            logger.debug(f"Duplicate exercise: plan_id={plan_id}, exercise_id={exercise_id}")
+            return jsonify({'success': False, 'message': 'Exercise already in workout plan'}), 400
+
+        # Bepaal volgende order
+        max_order = db.session.query(db.func.max(WorkoutPlanExercise.order)).filter_by(workout_plan_id=plan_id).scalar() or -1
+        next_order = max_order + 1
+
+        # Voeg nieuwe oefening toe
+        new_entry = WorkoutPlanExercise(
+            workout_plan_id=plan_id,
+            exercise_id=exercise_id,
+            sets=3,
+            reps=10,
+            weight=0.0,
+            order=next_order
+        )
+        db.session.add(new_entry)
         db.session.commit()
-        logger.debug(f"Exercise added: plan_id={plan_id}, exercise_id={exercise_id}, exercise_name={exercise.name}")
-        return jsonify({'success': True, 'message': f'{exercise.name} added to workout plan', 'redirect': next_url})
+
+        logger.debug(f"Exercise added: plan_id={plan_id}, exercise_name={exercise.name}")
+        flash(f"{exercise.name} toegevoegd aan workout!", "success")
+        return jsonify({
+            'success': True,
+            'message': f'{exercise.name} added to workout plan',
+            'redirect': next_url
+        })
+
+    except CSRFError as e:
+        logger.error(f"CSRF error: {str(e)}, received={request.headers.get('X-CSRF-Token')}")
+        return jsonify({'success': False, 'message': 'Invalid or missing CSRF token'}), 403
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Failed to add exercise: {str(e)}")
+        logger.error(f"Error adding exercise: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'message': 'Error adding exercise'}), 500
-
-
 
 @main.route('/add_workout', methods=['GET', 'POST'])
 @login_required
@@ -751,113 +768,6 @@ def delete_exercise_from_plan(plan_id):
         logger.error(f"DeleteExerciseForm validation failed: {form.errors}")
 
     return redirect(url_for('main.edit_workout', plan_id=plan_id))
-
-
-
-@main.route('/add_exercise/<int:plan_id>/<int:exercise_id>', methods=['POST'])
-@login_required
-def add_exercise(plan_id, exercise_id):
-    logger.debug(f"Add exercise: user={current_user.name}, user_id={current_user.id}, plan_id={plan_id}, exercise_id={exercise_id}, request_data={request.get_json()}, csrf_token={request.headers.get('X-CSRF-Token')}")
-
-    try:
-        if plan_id == 0:
-            # Store exercise in session for new workouts
-            if 'temp_exercises' not in session:
-                session['temp_exercises'] = []
-            if exercise_id not in session['temp_exercises']:
-                session['temp_exercises'].append(exercise_id)
-                session.modified = True
-                logger.debug(f"Added exercise_id={exercise_id} to session: {session['temp_exercises']}")
-            else:
-                logger.debug(f"Exercise_id={exercise_id} already in session")
-            return jsonify({'success': True, 'message': 'Exercise added to temporary workout'})
-
-        workout_plan = WorkoutPlan.query.get(plan_id)
-        if not workout_plan:
-            logger.error(f"Workout plan not found: plan_id={plan_id}")
-            return jsonify({'success': False, 'message': 'Workout plan not found'}), 404
-
-        if workout_plan.user_id != current_user.id:
-            logger.error(f"Unauthorized access: user={current_user.id}, plan_user={workout_plan.user_id}")
-            return jsonify({'success': False, 'message': 'Unauthorized access to workout plan'}), 403
-
-        exercise = Exercise.query.get(exercise_id)
-        if not exercise:
-            logger.error(f"Exercise not found: exercise_id={exercise_id}")
-            return jsonify({'success': False, 'message': 'Exercise not found'}), 404
-
-        # Check for duplicates
-        existing = WorkoutPlanExercise.query.filter_by(workout_plan_id=plan_id, exercise_id=exercise_id).first()
-        if existing:
-            logger.debug(f"Duplicate exercise: plan_id={plan_id}, exercise_id={exercise_id}")
-            return jsonify({'success': False, 'message': 'Exercise already in workout plan'}), 400
-
-        # Determine next order
-        max_order = db.session.scalars(
-            select(WorkoutPlanExercise.order)
-            .filter_by(workout_plan_id=plan_id)
-            .order_by(WorkoutPlanExercise.order.desc())
-        ).first()
-        next_order = (max_order + 1) if max_order is not None else 0
-
-        # Add new exercise
-        new_entry = WorkoutPlanExercise(
-            workout_plan_id=plan_id,
-            exercise_id=exercise_id,
-            sets=3,
-            reps=10,
-            weight=0.0,
-            order=next_order
-        )
-        db.session.add(new_entry)
-        db.session.commit()
-
-        logger.debug(f"Exercise added: plan_id={plan_id}, exercise_name={exercise.name}")
-        return jsonify({'success': True, 'message': f'{exercise.name} added to workout plan'})
-
-    except CSRFError as e:
-        logger.error(f"CSRF error: {str(e)}, received={request.headers.get('X-CSRF-Token')}")
-        return jsonify({'success': False, 'message': 'Invalid or missing CSRF token'}), 403
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error in add_exercise: {str(e)}", exc_info=True)
-        return jsonify({'success': False, 'message': f'Server error: {str(e)}'}), 500
-
-
-@main.route('/workout/<int:plan_id>/add_exercise/<int:exercise_id>', methods=['POST'])
-@login_required
-def add_exercise_to_workout(plan_id, exercise_id):
-    logger.debug(f"Add exercise to plan, user: {current_user.name}, plan_id: {plan_id}, exercise_id: {exercise_id}")
-    workout_plan = WorkoutPlan.query.get_or_404(plan_id)
-    if workout_plan.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-
-    exercise = Exercise.query.get_or_404(exercise_id)
-
-    existing = WorkoutPlanExercise.query.filter_by(workout_plan_id=plan_id, exercise_id=exercise_id).first()
-    if existing:
-        return jsonify({'success': False, 'message': 'Exercise already in workout plan'}), 400
-
-    max_order = db.session.scalars(
-        select(WorkoutPlanExercise.order)
-        .filter_by(workout_plan_id=plan_id)
-        .order_by(WorkoutPlanExercise.order.desc())
-    ).first()
-    next_order = (max_order + 1) if max_order is not None else 0
-
-    new_entry = WorkoutPlanExercise(
-        workout_plan_id=plan_id,
-        exercise_id=exercise_id,
-        sets=3,
-        reps=10,
-        weight=0.0,
-        order=next_order
-    )
-    db.session.add(new_entry)
-    db.session.commit()
-
-    flash(f"{exercise.name} toegevoegd aan workout!", "success")
-    return jsonify({'success': True, 'message': 'Exercise added to workout plan'})
 
 
 @main.route('/workout/<int:workout_id>/delete', methods=['POST'])
@@ -1462,6 +1372,7 @@ def workout_session_detail(session_id):
                            total_reps=total_reps,
                            total_weight=total_weight,
                            duration_minutes=duration_minutes)
+
 
 
 

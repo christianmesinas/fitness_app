@@ -97,7 +97,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 return;
             }
 
-            const baseUrl = "{{ url_for('main.add_exercise', plan_id=0, exercise_id=0) }}";
+            const baseUrl = "{{ url_for('main.add_exercise_to_workout', plan_id=0, exercise_id=0) }}";
             const url = baseUrl.replace('/0/', `/${planId}/`).replace('/0', `/${exerciseId}`);
 
             fetch(url, {
