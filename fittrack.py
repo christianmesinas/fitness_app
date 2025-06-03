@@ -1,5 +1,5 @@
 import logging
-from app import create_app, db
+from app import create_app
 
 # Configureer logging
 logging.basicConfig(level=logging.DEBUG)

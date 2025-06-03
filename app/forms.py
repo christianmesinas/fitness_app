@@ -1,6 +1,6 @@
 from flask import flash
 from flask_wtf import FlaskForm
-from wtforms import FieldList, FormField, HiddenField, StringField, FloatField, SelectField, IntegerField, SubmitField, ValidationError
+from wtforms import FieldList, FormField, StringField, FloatField, SelectField, IntegerField, SubmitField, ValidationError
 from wtforms.fields.simple import TextAreaField
 from wtforms.validators import DataRequired, Length, NumberRange, Optional
 from wtforms.widgets import Input

@@ -1,6 +1,5 @@
 import json
 import csv
-import re
 from app import db, create_app
 from app.models import Exercise, ExerciseMuscle, exercise_muscle_association
 from sqlalchemy.exc import IntegrityError

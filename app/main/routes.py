@@ -1,18 +1,16 @@
-from flask import render_template, request, current_app, session, redirect, url_for, flash, jsonify, abort
+from flask import render_template, request, current_app, session, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user, login_user, logout_user
-from app.forms import EditProfileForm, NameForm, SearchExerciseForm, CurrentWeightForm, WorkoutPlanForm, \
-    ExerciseLogForm, GoalWeightForm, ExerciseForm, ActiveWorkoutForm, SimpleWorkoutPlanForm, DeleteWorkoutForm, \
+from app.forms import EditProfileForm, NameForm, SearchExerciseForm, CurrentWeightForm, WorkoutPlanForm, GoalWeightForm, ExerciseForm, ActiveWorkoutForm, DeleteWorkoutForm, \
     DeleteExerciseForm, AddWeightForm
 from app.models import Exercise, WorkoutPlanExercise, WorkoutPlan, ExerciseLog, SetLog, WorkoutSession, WeightLog
 import logging
-from flask_wtf.csrf import generate_csrf,  validate_csrf, CSRFError
+from flask_wtf.csrf import CSRFError
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import select
 import uuid
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import pandas as pd
 import numpy as np
 import io
 import base64
@@ -1007,7 +1005,7 @@ def remove_workout(plan_id):
         flash('Workout succesvol verwijderd.', 'success')
         return redirect(url_for('main.index'))
 
-    except Exception as e:
+    except Exception :
         db.session.rollback()
         flash('Er is iets fout gegaan bij het verwijderen van de workout.', 'error')
         return redirect(url_for('main.edit_workout', plan_id=plan_id))
