@@ -14,12 +14,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import io
 import base64
-
+from markupsafe import escape
+from werkzeug.exceptions import NotFound, InternalServerError
 
 import json
 
 
-from .utils import check_onboarding_status, fix_image_path, clean_instruction_text
+from .utils import get_workout_data, get_user_workout_plans, owns_workout_plan, fix_image_path, clean_instruction_text, check_onboarding_status
 from .. import db
 from ..models import User
 
@@ -58,17 +59,8 @@ def index():
         return redirect(onboarding_redirect)
 
     # Only fetch non-archived workout plans
-    workout_plans = WorkoutPlan.query.filter_by(user_id=current_user.id, is_archived=False).all()
-
-    workout_data = []
-    for plan in workout_plans:
-        exercises = plan.exercises.order_by(WorkoutPlanExercise.order).all()  # lijst van WorkoutPlanExercise objecten
-        exercise_objs = [entry.exercise for entry in exercises]
-        workout_data.append({
-            'plan': plan,
-            'exercises': exercise_objs
-        })
-
+    workout_plans = get_user_workout_plans(current_user.id, archived=False)
+    workout_data = get_workout_data(workout_plans)
     delete_form = DeleteWorkoutForm()
 
     return render_template('index.html', workout_data=workout_data, delete_form=delete_form)
@@ -164,6 +156,7 @@ def logout():
                     '&returnTo=' + url_for('main.landing', _external=True))
 
 @main.route('/onboarding/name', methods=['GET', 'POST'])
+@login_required
 def onboarding_name():
     user = current_user
 
@@ -172,7 +165,7 @@ def onboarding_name():
 
     if form.validate_on_submit():
         # Update de naam van de gebruiker in de database
-        user.name = form.name.data
+        user.name = escape(form.name.data)
         db.session.commit()
 
         # Redirect naar de volgende onboarding stap
@@ -227,7 +220,7 @@ def profile():
     # Handle profile update
     if form.validate_on_submit() and form.submit.data:
         old_weight = current_user.current_weight
-        current_user.name = form.name.data
+        current_user.name = escape(form.name.data)
         current_user.current_weight = form.current_weight.data
         current_user.weekly_workouts = form.weekly_workouts.data
         current_user.fitness_goal = form.fitness_goal.data
@@ -237,7 +230,7 @@ def profile():
             weight_log = WeightLog(
                 user_id=current_user.id,
                 weight=form.current_weight.data,
-                notes="Bijgewerkt via profiel"
+                notes=escape("Bijgewerkt via profiel")
             )
             db.session.add(weight_log)
 
@@ -251,7 +244,7 @@ def profile():
         weight_log = WeightLog(
             user_id=current_user.id,
             weight=weight_form.weight.data,
-            notes=weight_form.notes.data
+            notes=escape(weight_form.notes.data) if weight_form.notes.data else None
         )
         current_user.current_weight = weight_form.weight.data
         db.session.add(weight_log)
@@ -453,8 +446,10 @@ def weight_history():
     return render_template('weight_history.html',
                            weights=weights,
                            user=current_user)
+
 @main.route('/workout/<int:plan_id>/add_exercise', methods=['POST'])
 @login_required
+@owns_workout_plan
 def add_exercise_to_workout(plan_id):
     logger.debug(f"Add exercise to plan, user: {current_user.name}, user_id: {current_user.id}, plan_id: {plan_id}, request_data: {request.get_json()}")
 
@@ -483,12 +478,6 @@ def add_exercise_to_workout(plan_id):
             else:
                 logger.debug(f"Exercise_id={exercise_id} already in session")
             return jsonify({'success': True, 'message': 'Exercise added to temporary workout'})
-
-        # Controleer workout plan
-        workout_plan = WorkoutPlan.query.get_or_404(plan_id)
-        if workout_plan.user_id != current_user.id:
-            logger.error(f"Unauthorized access: user={current_user.id}, plan_user={workout_plan.user_id}")
-            return jsonify({'success': False, 'message': 'Unauthorized access to workout plan'}), 403
 
         # Controleer oefening
         exercise = Exercise.query.get_or_404(exercise_id)
@@ -538,9 +527,9 @@ def add_workout():
     form = WorkoutPlanForm()
 
     if form.validate_on_submit():
-        new_workout = WorkoutPlan(name=form.name.data, user_id=current_user.id)
+        new_workout = WorkoutPlan(name=escape(form.name.data), user_id=current_user.id)
         db.session.add(new_workout)
-        db.session.flush()  # Ensure new_workout.id is available
+        db.session.flush()
 
         # Add exercises from form
         for index, exercise_form in enumerate(form.exercises):
@@ -582,21 +571,16 @@ def add_workout():
         select(Exercise).filter(Exercise.id.in_(temp_exercises))
     ).all() if temp_exercises else []
 
-    existing_plans = WorkoutPlan.query.filter_by(user_id=current_user.id).order_by(WorkoutPlan.created_at.desc()).all()
-
+    existing_plans = get_user_workout_plans(current_user.id, archived=None)
 
     return render_template('new_workout.html', form=form, plan=None, workout_plan=None, exercises=exercises, existing_plans=existing_plans)
 
 
 @main.route('/edit_workout/<int:plan_id>', methods=['GET', 'POST'])
 @login_required
+@owns_workout_plan
 def edit_workout(plan_id):
     workout_plan = WorkoutPlan.query.get_or_404(plan_id)
-
-    if workout_plan.user_id != current_user.id:
-        flash("Je hebt geen toegang tot deze workout.", "error")
-        logger.debug(f"User {current_user.id} attempted to access plan_id {plan_id}")
-        return redirect(url_for('main.index'))
 
     form = WorkoutPlanForm()
     logger.debug(f"Initial form.name.data: {form.name.data}, workout_plan.name: {workout_plan.name}")
@@ -709,6 +693,7 @@ def edit_workout(plan_id):
 
 @main.route('/delete_exercise_from_plan/<int:plan_id>', methods=['POST'])
 @login_required
+@owns_workout_plan
 def delete_exercise_from_plan(plan_id):
     logger.debug(f"Delete POST data: {request.form}")
 
@@ -735,11 +720,6 @@ def delete_exercise_from_plan(plan_id):
             logger.error(f"Exercise {wpe_id} does not belong to plan {plan_id}")
             return redirect(url_for('main.edit_workout', plan_id=plan_id))
 
-        workout_plan = WorkoutPlan.query.get_or_404(plan_id)
-        if workout_plan.user_id != current_user.id:
-            flash("Geen toegang tot dit plan.", "error")
-            logger.error(f"User {current_user.id} not authorized for plan {plan_id}")
-            return redirect(url_for('main.index'))
 
         # Delete the WorkoutPlanExercise record
         logger.debug(f"Deleting exercise {wpe_id} with exercise_id {wpe.exercise_id} from plan {plan_id}")
@@ -767,35 +747,13 @@ def delete_exercise_from_plan(plan_id):
 
     return redirect(url_for('main.edit_workout', plan_id=plan_id))
 
-
-@main.route('/workout/<int:workout_id>/delete', methods=['POST'])
+@main.route('/add_set/<int:plan_id>', methods=['POST'])
 @login_required
-def delete_workout(workout_id):
-    workout = WorkoutPlan.query.get_or_404(workout_id)
-
-    if workout.user_id != current_user.id:
-        flash("Je mag alleen je eigen workouts verwijderen.", "danger")
-        return redirect(url_for('main.index'))
-
-    # Verwijder expliciet de relaties (associatie-objecten)
-    WorkoutPlanExercise.query.filter_by(workout_plan_id=workout.id).delete()
-
-    db.session.delete(workout)
-    db.session.commit()
-
-    flash("Workout succesvol verwijderd.", "success")
-    return redirect(url_for('main.index'))
-
-@main.route('/add_set', methods=['POST'])
-@login_required
-def add_set():
+@owns_workout_plan
+def add_set(plan_id):
     data = request.get_json()
     exercise_id = data.get('exercise_id')
     plan_id = data.get('plan_id')
-
-    workout_plan = WorkoutPlan.query.get_or_404(plan_id)
-    if workout_plan.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
     plan_exercise = WorkoutPlanExercise.query.filter_by(workout_plan_id=plan_id, exercise_id=exercise_id).first()
     if plan_exercise:
@@ -805,16 +763,13 @@ def add_set():
     return jsonify({'success': False, 'error': 'Exercise not found'}), 404
 
 
-@main.route('/complete_all_sets', methods=['POST'])
+@main.route('/complete_all_sets/<int:plan_id>', methods=['POST'])
 @login_required
-def complete_all_sets():
+@owns_workout_plan
+def complete_all_sets(plan_id):
     data = request.get_json()
     exercise_id = data.get('exercise_id')
     plan_id = data.get('plan_id')
-
-    workout_plan = WorkoutPlan.query.get_or_404(plan_id)
-    if workout_plan.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
     plan_exercise = WorkoutPlanExercise.query.filter_by(workout_plan_id=plan_id, exercise_id=exercise_id).first()
     if plan_exercise:
@@ -958,16 +913,13 @@ def exercise_detail(exercise_id):
 
 @main.route('/plan/<int:plan_id>/exercise/<int:exercise_id>/edit', methods=['GET', 'POST'])
 @login_required
+@owns_workout_plan
 def edit_exercise(plan_id, exercise_id):
     data = request.get_json()
 
     sets = data.get('sets')
     reps = data.get('reps')
     weight = data.get('weight')
-
-    workout_plan = WorkoutPlan.query.get_or_404(plan_id)
-    if workout_plan.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
     plan_exercise = WorkoutPlanExercise.query.filter_by(workout_plan_id=plan_id, exercise_id=exercise_id).first()
     if not plan_exercise:
@@ -991,12 +943,9 @@ def edit_exercise(plan_id, exercise_id):
 
 @main.route('/remove_workout/<int:plan_id>', methods=['POST'])
 @login_required
+@owns_workout_plan
 def remove_workout(plan_id):
     workout_plan = WorkoutPlan.query.get_or_404(plan_id)
-
-    if workout_plan.user_id != current_user.id:
-        flash("Je hebt geen toegang tot deze workout.", "error")
-        return redirect(url_for('main.index'))
 
     try:
         WorkoutPlanExercise.query.filter_by(workout_plan_id=plan_id).delete()
@@ -1013,11 +962,9 @@ def remove_workout(plan_id):
 
 @main.route('/start_workout/<int:plan_id>', methods=['GET'])
 @login_required
+@owns_workout_plan
 def start_workout(plan_id):
     workout_plan = WorkoutPlan.query.get_or_404(plan_id)
-    if workout_plan.user_id != current_user.id:
-        flash("Je hebt geen toegang tot deze workout.", "error")
-        return redirect(url_for('main.index'))
 
     # Maak een nieuwe workout sessie aan
     session_id = str(uuid.uuid4())
@@ -1051,6 +998,7 @@ def start_workout(plan_id):
 
 @main.route('/save_workout/<int:plan_id>', methods=['POST'])
 @login_required
+@owns_workout_plan
 def save_workout(plan_id):
     logger.debug(
         f"Saving workout for plan_id={plan_id}, user_id={current_user.id}, session_id={session.get('current_workout_session')}")
@@ -1061,9 +1009,6 @@ def save_workout(plan_id):
         return jsonify({'success': False, 'message': f'Ongeldige formuliergegevens: {errors}'}), 400
 
     workout_plan = WorkoutPlan.query.get_or_404(plan_id)
-    if workout_plan.user_id != current_user.id:
-        logger.error(f"Unauthorized access to plan_id={plan_id}")
-        return jsonify({'success': False, 'message': 'Je hebt geen toegang tot deze workout.'}), 403
 
     wpes = WorkoutPlanExercise.query.filter_by(workout_plan_id=plan_id).all()
     session_id = session.get('current_workout_session')
@@ -1201,6 +1146,7 @@ def save_set():
 
 @main.route('/complete_workout/<int:plan_id>', methods=['POST'])
 @login_required
+@owns_workout_plan
 def complete_workout(plan_id):
     logger.debug(f"Attempting to complete workout for plan_id={plan_id}, user_id={current_user.id}")
     try:
@@ -1431,10 +1377,6 @@ def archive_workout(workout_id):
     logger.debug(f"Archiving workout: workout_id={workout_id}, user_id={current_user.id}")
     workout = WorkoutPlan.query.get_or_404(workout_id)
 
-    if workout.user_id != current_user.id:
-        logger.error(f"Unauthorized access: user_id={current_user.id}, workout_user_id={workout.user_id}")
-        return jsonify({'success': False, 'message': 'Je hebt geen toegang tot deze workout.'}), 403
-
     workout.is_archived = True
     try:
         db.session.commit()
@@ -1449,35 +1391,24 @@ def archive_workout(workout_id):
 @login_required
 def archived_plans():
     logger.debug(f"Archived plans route aangeroepen voor {current_user.name}")
-    workout_plans = WorkoutPlan.query.filter_by(user_id=current_user.id, is_archived=True).all()
-
-    workout_data = []
-    for plan in workout_plans:
-        exercises = plan.exercises.order_by(WorkoutPlanExercise.order).all()
-        exercise_objs = [entry.exercise for entry in exercises]
-        workout_data.append({
-            'plan': plan,
-            'exercises': exercise_objs
-        })
+    workout_plans = get_user_workout_plans(current_user.id, archived=True)
+    workout_data = get_workout_data(workout_plans)
 
     return render_template('archived_workouts.html', workout_data=workout_data)
 
-@main.route('/unarchive_workout/<int:workout_id>', methods=['POST'])
-@login_required
-def unarchive_workout(workout_id):
-    logger.debug(f"Unarchiving workout: workout_id={workout_id}, user_id={current_user.id}")
-    workout = WorkoutPlan.query.get_or_404(workout_id)
+# Error handlers
+@main.errorhandler(404)
+def page_not_found(error):
+    logger.error(f"404 Error: {str(error)}, Path: {request.path}, User: {current_user.id if current_user.is_authenticated else 'Anonymous'}")
+    return render_template('404.html', error=error), 404
 
-    if workout.user_id != current_user.id:
-        logger.error(f"Unauthorized access: user_id={current_user.id}, workout_user_id={workout.user_id}")
-        return jsonify({'success': False, 'message': 'Je hebt geen toegang tot deze workout.'}), 403
+@main.errorhandler(500)
+def internal_server_error(error):
+    logger.error(f"500 Error: {str(error)}, Path: {request.path}, User: {current_user.id if current_user.is_authenticated else 'Anonymous'}", exc_info=True)
+    return render_template('500.html', error=error), 500
 
-    workout.is_archived = False
-    try:
-        db.session.commit()
-        logger.info(f"Workout unarchived: workout_id={workout_id}")
-        return jsonify({'success': True, 'message': 'Workout succesvol hersteld.'})
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error unarchiving workout: {str(e)}")
-        return jsonify({'success': False, 'message': f'Fout bij het herstellen: {str(e)}'}), 500
+@main.errorhandler(CSRFError)
+def handle_csrf_error(error):
+    logger.error(f"CSRF Error: {str(error)}, Path: {request.path}")
+    flash("Ongeldige sessie. Probeer opnieuw.", "error")
+    return render_template('400.html'), 400

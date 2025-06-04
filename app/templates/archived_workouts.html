@@ -13,14 +13,6 @@
                             <li>Geen oefeningen toegevoegd</li>
                         {% endfor %}
                     </ul>
-                    <a href="{{ url_for('main.start_workout', plan_id=workout_info.plan.id) }}" class="orange-btn workout-start-btn">Start</a>
-                    <div class="setting-dots-wrapper">
-                        <a href="#" class="setting-dots-workout">...</a>
-                        <div class="settings-menu">
-                            <a href="{{ url_for('main.edit_workout', plan_id=workout_info.plan.id) }}">Bewerk workout</a>
-                            <a href="#" class="unarchive-workout" data-workout-id="{{ workout_info.plan.id }}">Herstel workout</a>
-                        </div>
-                    </div>
                 </section>
             {% else %}
                 <p>Er zijn geen gearchiveerde workout plannen.</p>
