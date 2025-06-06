@@ -13,9 +13,9 @@
                 <h1>{{ workout_plan.name }}</h1>
             </div>
         </section>
-        <section class="exercise-blok-section">
+        <section class="exercise-blok-section mg-btm-exercise">
             {% for wpe in exercises %}
-                <section class="active-workout-block" data-wpe-id="{{ wpe.id }}">
+                <section class="active-workout-block active-workout-in-plan" data-wpe-id="{{ wpe.id }}">
                     <h2>{{ wpe.exercise.name }}</h2>
                     <section class="set-section">
                         {% for set_num in range(wpe.sets) %}

@@ -143,6 +143,7 @@ input {
 /* navigation */
 
 .navbar {
+  font-size: larger;
   position: fixed !important;
   bottom: 0;
   width: 100%;
@@ -150,7 +151,7 @@ input {
   padding: 10px;
   z-index: 1000;
   background-color: white;
-  height: 60px;
+  height: 85px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -399,17 +400,17 @@ input {
 }
 
 .workout-block {
+  display: flex;
+  flex-direction: column;
   max-width: 700px;
   background-color: #F2F2F2;
   border-radius: 10px;
   width: 90%;
   padding: 40px;
   position: relative;
-  height: 200px;
 }
 
 .workout-start-btn {
-  position: absolute;
   bottom: 0;
 }
 
@@ -431,11 +432,23 @@ input {
 .add-new-workout-btn {
   width: 90%;
   max-width: 700px;
-  margin-bottom: 60px;
 }
 
 .home-btn {
   margin-top: 20px;
+}
+
+.update-workout-btn{
+  margin-bottom: 0;
+}
+
+.archive-workout-btn{
+    margin-bottom: 150px;
+
+}
+
+.archive-home-btn{
+  max-width: 700px;
   margin-bottom: 150px;
 }
 
@@ -512,7 +525,22 @@ input {
   width: 100%;
   text-decoration: none
 }
+.search-exercise-link{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-direction: row;
+}
 
+.search-exercise-link h2{
+  color: black;
+}
+
+.exercise-search-content{
+  display: flex;
+  justify-content: space-between;
+  width: initial;
+}
 .exercise-block-content h2 {
   color: black;
 }
@@ -749,8 +777,8 @@ select {
   padding: 40px;
   display: flex;
   align-items: center;
-  justify-content: space-evenly;
-  flex-direction: column;
+  justify-content: space-between;
+  flex-direction: row;
   gap: 30px;
 }
 
@@ -776,7 +804,6 @@ select {
   font-size: 18px;
   font-weight: normal;
   font-style: italic;
-  position: absolute;
   top: 23px;
 }
 
@@ -873,7 +900,10 @@ select {
     border-width: 0 3px 3px 0;
     transform: rotate(45deg);
 }
-
+.profile-section{
+  max-width: 1000px;
+  margin: auto;
+}
 /* progress tracker template */
 
 .progress-tracker-section {
@@ -883,14 +913,25 @@ select {
 }
 
 .setting-dots-wrapper {
-    position: relative;
     display: inline-block;
+}
+
+.active-workout-in-plan{
+  flex-direction: column;
+}
+.mg-auto{
+  margin: auto;
+  display: block;
+}
+.mg-btm-exercise{
+  margin-bottom: 150px;
 }
 
 .settings-menu {
     display: none;
     position: absolute;
-    right: 0;
+    right: 15px;
+    top: 40px;
     background-color: white;
     border: 1px solid #ccc;
     min-width: 150px;

@@ -29,7 +29,6 @@
                             <th>Gewicht</th>
                             <th>Verschil</th>
                             <th>Notities</th>
-                            <th>Actie</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -61,15 +60,6 @@
                                 {% else %}
                                     <span class="text-muted">-</span>
                                 {% endif %}
-                            </td>
-                            <td>
-                                <form method="POST" action="{{ url_for('main.delete_weight', weight_id=weight.id) }}" style="display:inline;">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" 
-                                            onclick="return confirm('Weet je zeker dat je deze meting wilt verwijderen?')"
-                                            title="Verwijder meting">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </form>
                             </td>
                         </tr>
                         {% endfor %}

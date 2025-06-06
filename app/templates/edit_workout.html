@@ -3,7 +3,7 @@
 {% block content %}
 <div class="top-bar">
   <a href="{{ url_for('main.index') }}">
-    <img src="{{ url_for('static', filename='img/back.svg') }}" alt="Back">
+    <img src="{{ url_for('static', filename='img/back.svg') }}" alt="Back" class="back-icon">
   </a>
 </div>
 
@@ -31,7 +31,7 @@
         {% for plan_exercise, exercise_form in exercise_pairs %}
           {% set exercise_obj = exercises_dict.get(plan_exercise.exercise_id|string) %}
           <section class="active-workout-block" data-exercise-id="{{ plan_exercise.exercise_id }}">
-            <!-- Drie-puntjes knop -->
+            <h2>{{ exercise_obj.name if exercise_obj else "Onbekende oefening" }}</h2>
 
             {% if exercise_obj and exercise_obj.images_list %}
               <img class="exercise-block-img" src="{{ url_for('static', filename='img/exercises/' + exercise_obj.images_list[0]) }}" alt="{{ exercise_obj.name }}">
@@ -39,7 +39,6 @@
               <p>Geen afbeeldingen beschikbaar</p>
             {% endif %}
 
-            <h2>{{ exercise_obj.name if exercise_obj else "Onbekende oefening" }}</h2>
 
             <div class="exercise-details displayNone">
               {{ exercise_form.hidden_tag() }}
@@ -89,16 +88,18 @@
       {% endif %}
 
       <a href="{{ url_for('main.search_exercise', plan_id=workout_plan.id) }}" class="second-grey-cta-btn">Add exercise</a>
-      {{ form.submit(value="Update workout", class="orange-btn-outline add-new-workout-btn") }}
-    </section>
-  </form>
+      {{ form.submit(value="Update workout", class="orange-btn-outline add-new-workout-btn update-workout-btn") }}
 
-  <!-- Archiveer knop in plaats van verwijder knop -->
-  <button class="btn btn-warning archive-workout-btn"
+      <button class="btn btn-warning orange-btn-outline add-new-workout-btn archive-workout-btn"
           data-workout-id="{{ workout_plan.id }}"
           style="margin-top: 20px;">
     📁 Archiveer workout
   </button>
+
+    </section>
+  </form>
+
+  <!-- Archiveer knop in plaats van verwijder knop -->
 
   <!-- Hidden form for exercise deletion -->
   <form method="POST" id="delete-exercise-form" style="display:none;">

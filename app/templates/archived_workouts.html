@@ -1,26 +1,48 @@
 {% extends "base.html" %}
+
+{% block title %}FitTrack - Gearchiveerde Workout Plannen{% endblock %}
+
 {% block content %}
+<div class="top-bar">
+    <a href="{{ url_for('main.index') }}">
+        <img src="{{ url_for('static', filename='img/back.svg') }}" alt="Terug knop" class="back-icon"/>
+    </a>
+</div>
+
+<section class="header-section">
     <h1>Gearchiveerde Workout Plannen</h1>
+</section>
+
+<section class="exercise-blok-section ">
     {% if workout_data %}
-        <section class="workout-blok-section">
-            {% for workout_info in workout_data %}
-                <section class="workout-block" id="workout-{{ workout_info.plan.id }}">
-                    <h2>{{ workout_info.plan.name }}</h2>
-                    <ul>
-                        {% for exercise in workout_info.exercises %}
-                            <li>{{ exercise.name }}</li>
-                        {% else %}
-                            <li>Geen oefeningen toegevoegd</li>
-                        {% endfor %}
-                    </ul>
-                </section>
-            {% else %}
-                <p>Er zijn geen gearchiveerde workout plannen.</p>
-            {% endfor %}
-        </section>
+        {% for workout_info in workout_data %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">{{ workout_info.plan.name }}</h5>
+                    {% if workout_info.exercises %}
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Oefening</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for exercise in workout_info.exercises %}
+                                    <tr>
+                                        <td>{{ exercise.name }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
     {% else %}
         <p>Er zijn geen gearchiveerde workout plannen.</p>
     {% endif %}
-    <a href="{{ url_for('main.index') }}" class="orange-btn-outline home-btn">Terug naar Home</a>
-    <script src="{{ url_for('static', filename='js/menu.js') }}" defer></script>
+</section>
+
+<a href="{{ url_for('main.index') }}" class="orange-btn-outline home-btn mg-btm-exercise mg-auto archive-home-btn">Terug naar Home</a>
 {% endblock %}

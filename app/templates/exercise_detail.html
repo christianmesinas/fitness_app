@@ -3,7 +3,7 @@
     {% if current_user %}
         <div class="top-bar">
             <a href="{{ url_for('main.index') }}">
-                <img src="{{ url_for('static', filename='img/back.svg') }}" alt="Back">
+                <img src="{{ url_for('static', filename='img/back.svg') }}" alt="Back" class="back-icon">
             </a>
         </div>
 
@@ -16,7 +16,11 @@
         <section class="single-exercise-page">
             <h2>Afbeelding</h2>
   {% if exercise.images %}
-  <img class="single-exercise-img" src="{{ url_for('static', filename='img/exercises/' + exercise.images[0]) }}" alt="{{ exercise.name }}">
+      <div>
+       <img class="single-exercise-img" src="{{ url_for('static', filename='img/exercises/' + exercise.images[0]) }}" alt="{{ exercise.name }}">
+  <img class="single-exercise-img" src="{{ url_for('static', filename='img/exercises/' + exercise.images[1]) }}" alt="{{ exercise.name }}">
+      </div>
+
 {% else %}
   <img class="single-exercise-img" src="{{ url_for('static', filename='img/placeholder.png') }}" alt="{{ exercise.name }}">
 {% endif %}
