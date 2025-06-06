@@ -2,7 +2,6 @@ from flask import url_for, jsonify, request
 import re
 from flask_login import current_user
 from functools import wraps
-from sqlalchemy.orm import joinedload
 from app.models import WorkoutPlan, WorkoutPlanExercise
 
 
@@ -73,3 +72,4 @@ def get_workout_data(plans):
             'exercises': [entry.exercise for entry in exercises]
         })
     return workout_data
+

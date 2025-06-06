@@ -19,11 +19,7 @@ class Config:
     SESSION_TYPE = 'filesystem'
     SESSION_PERMANENT = False
     SESSION_USE_SIGNER = True
-    ADMINS = ['ADMINS']
     MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER')
-    MS_TRANSLATOR_KEY = os.environ.get('MS_TRANSLATOR_KEY')
-    POSTS_PER_PAGE = 25
-    REDIS_URL = os.environ.get('REDIS_URL') or 'redis://'
 
     AUTH0_DOMAIN = os.getenv('AUTH0_DOMAIN')
     AUTH0_CLIENT_ID = os.getenv('AUTH0_CLIENT_ID')

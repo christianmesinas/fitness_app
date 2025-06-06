@@ -119,9 +119,7 @@ class SearchExerciseForm(FlaskForm):
 
     submit = SubmitField('Search')
 
-class SimpleWorkoutPlanForm(FlaskForm):
-    name = StringField('Plan Name', validators=[DataRequired(), Length(min=2, max=50)])
-    submit = SubmitField('Create workout')
+
 
 class WorkoutPlanForm(FlaskForm):
     name = StringField('Plan Name', validators=[DataRequired(), Length(min=2, max=50)])
@@ -140,19 +138,6 @@ class WorkoutPlanForm(FlaskForm):
                   'warning')
 
 
-
-class ExerciseLogForm(FlaskForm):
-    exercise_id = SelectField('Exercise', coerce=int, validators=[DataRequired()])
-    sets = IntegerField('Sets', validators=[DataRequired(), NumberRange(min=1)])
-    reps = IntegerField('Reps', validators=[DataRequired(), NumberRange(min=1)])
-    weight = FloatField('Weight (kg)', validators=[NumberRange(min=0)])
-    submit = SubmitField('Log Exercise')
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        from app.models import Exercise
-        self.exercise_id.choices = [(e.id, e.name) for e in Exercise.query.all()]
-
 class DeleteWorkoutForm(FlaskForm):
     pass
 
@@ -160,9 +145,6 @@ class DeleteExerciseForm(FlaskForm):
     workout_plan_exercise_id = IntegerField('Workout Plan Exercise ID', validators=[DataRequired()])
     submit = SubmitField('Delete')
 
-
-class SaveWorkoutForm(FlaskForm):
-    submit = SubmitField('Training opslaan')
 
 class ActiveWorkoutForm(FlaskForm):
     pass

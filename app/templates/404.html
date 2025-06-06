@@ -1,6 +1,18 @@
 {% extends "base.html" %}
 
 {% block content %}
-     <h1>{{ 'Not Found' }}</h1>
-    <p><a href="{{ url_for('main.index') }}">{{ 'Back' }}</a></p>
+    <div class="top-bar">
+            <a href="/index">
+                <img src="/static/img/back.svg" alt="Terug knop" class="back-icon">
+            </a>
+        </div>
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 text-center">
+            <h1 class="display-4">404 - Page Not Found</h1>
+            <p class="lead">Sorry, the page you are looking for does not exist.</p>
+            <p><a href="{{ url_for('main.index') }}" class="btn btn-secondary">Back to Home</a></p>
+        </div>
+    </div>
+</div>
 {% endblock %}

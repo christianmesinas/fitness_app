@@ -85,7 +85,6 @@ class User(db.Model):
     auth0_id: so.Mapped[str] = so.mapped_column(sa.String(64), unique=True, nullable=False)
     name: so.Mapped[Optional[str]] = so.mapped_column(sa.String(64), index=True, nullable=True)
     email: so.Mapped[str] = so.mapped_column(sa.String(120), index=True, unique=True, nullable=False)
-    sub: so.Mapped[Optional[str]] = so.mapped_column(sa.String(128), unique=True, nullable=True)  # Nullable
     last_seen: so.Mapped[Optional[datetime]] = so.mapped_column(default=lambda: datetime.now(timezone.utc))
     current_weight: so.Mapped[Optional[float]] = so.mapped_column()
     fitness_goal: so.Mapped[Optional[float]] = so.mapped_column()

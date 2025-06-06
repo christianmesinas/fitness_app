@@ -22,7 +22,6 @@ csrf = CSRFProtect()
 @login.user_loader
 def load_user(user_id):
     from app.models import User
-    logger.debug(f"Laden van gebruiker met id: {user_id}")
     try:
         user = db.session.get(User, int(user_id))
         if not user:
@@ -47,7 +46,6 @@ def create_app(config_class=Config):
 
     csrf.init_app(app)
 
-
     db.init_app(app)
     migrate.init_app(app, db)
     login.init_app(app)
@@ -66,9 +64,10 @@ def create_app(config_class=Config):
             'scope': 'openid profile email',
         },
     )
-
+    from app.errors import bp as errors_bp
     from app.main import bp as main_bp
     app.register_blueprint(main_bp)
+    app.register_blueprint(errors_bp)
 
     from app import models
 

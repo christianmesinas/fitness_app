@@ -1,5 +1,6 @@
 from flask import render_template, request, current_app, session, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user, login_user, logout_user
+
 from app.forms import EditProfileForm, NameForm, SearchExerciseForm, CurrentWeightForm, WorkoutPlanForm, GoalWeightForm, ExerciseForm, ActiveWorkoutForm, DeleteWorkoutForm, \
     DeleteExerciseForm, AddWeightForm
 from app.models import Exercise, WorkoutPlanExercise, WorkoutPlan, ExerciseLog, SetLog, WorkoutSession, WeightLog
@@ -15,7 +16,6 @@ import numpy as np
 import io
 import base64
 from markupsafe import escape
-from werkzeug.exceptions import NotFound, InternalServerError
 
 import json
 
@@ -691,62 +691,6 @@ def edit_workout(plan_id):
     )
 
 
-@main.route('/delete_exercise_from_plan/<int:plan_id>', methods=['POST'])
-@login_required
-@owns_workout_plan
-def delete_exercise_from_plan(plan_id):
-    logger.debug(f"Delete POST data: {request.form}")
-
-    wpe_id = request.form.get('workout_plan_exercise_id')
-
-    if not wpe_id:
-        flash("Ongeldig item ID.", "error")
-        logger.error("No workout_plan_exercise_id in POST data")
-        return redirect(url_for('main.edit_workout', plan_id=plan_id))
-
-    try:
-        wpe_id = int(wpe_id)
-    except (ValueError, TypeError):
-        flash("Ongeldig item ID.", "error")
-        logger.error(f"Invalid workout_plan_exercise_id: {wpe_id}")
-        return redirect(url_for('main.edit_workout', plan_id=plan_id))
-
-    form = DeleteExerciseForm()
-    if form.validate_on_submit():
-        wpe = WorkoutPlanExercise.query.get_or_404(wpe_id)
-        logger.debug(f"Found WorkoutPlanExercise: id={wpe.id}, exercise_id={wpe.exercise_id}, order={wpe.order}")
-        if wpe.workout_plan_id != plan_id:
-            flash("Deze oefening hoort niet bij dit plan.", "error")
-            logger.error(f"Exercise {wpe_id} does not belong to plan {plan_id}")
-            return redirect(url_for('main.edit_workout', plan_id=plan_id))
-
-
-        # Delete the WorkoutPlanExercise record
-        logger.debug(f"Deleting exercise {wpe_id} with exercise_id {wpe.exercise_id} from plan {plan_id}")
-        db.session.delete(wpe)
-
-        # Reorder remaining exercises
-        with db.session.no_autoflush:
-            remaining_exercises = WorkoutPlanExercise.query.filter_by(workout_plan_id=plan_id).order_by(
-                WorkoutPlanExercise.order).all()
-            for idx, exercise in enumerate(remaining_exercises):
-                exercise.order = idx
-                db.session.add(exercise)
-
-        try:
-            db.session.commit()
-            flash("Oefening verwijderd.", "success")
-            logger.debug(f"Successfully deleted exercise {wpe_id}")
-        except Exception as e:
-            db.session.rollback()
-            flash("Fout bij het verwijderen van de oefening.", "error")
-            logger.error(f"Delete failed: {str(e)}")
-    else:
-        flash("Ongeldig formulier.", "error")
-        logger.error(f"DeleteExerciseForm validation failed: {form.errors}")
-
-    return redirect(url_for('main.edit_workout', plan_id=plan_id))
-
 @main.route('/add_set/<int:plan_id>', methods=['POST'])
 @login_required
 @owns_workout_plan
@@ -788,24 +732,6 @@ def complete_all_sets(plan_id):
         return jsonify({'success': True})
     return jsonify({'success': False, 'error': 'Exercise not found'}), 404
 
-
-@main.route('/update_exercise_order', methods=['POST'])
-@login_required
-def update_exercise_order():
-    data = request.get_json()
-    plan_id = data.get('plan_id')
-    order = data.get('order')
-
-    workout_plan = WorkoutPlan.query.get_or_404(plan_id)
-    if workout_plan.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-
-    for index, exercise_id in enumerate(order):
-        plan_exercise = WorkoutPlanExercise.query.filter_by(workout_plan_id=plan_id, exercise_id=exercise_id).first()
-        if plan_exercise:
-            plan_exercise.order = index
-    db.session.commit()
-    return jsonify({'success': True})
 
 
 @main.route('/search_exercise', methods=['GET'])
@@ -939,25 +865,6 @@ def edit_exercise(plan_id, exercise_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@main.route('/remove_workout/<int:plan_id>', methods=['POST'])
-@login_required
-@owns_workout_plan
-def remove_workout(plan_id):
-    workout_plan = WorkoutPlan.query.get_or_404(plan_id)
-
-    try:
-        WorkoutPlanExercise.query.filter_by(workout_plan_id=plan_id).delete()
-        db.session.delete(workout_plan)
-        db.session.commit()
-        flash('Workout succesvol verwijderd.', 'success')
-        return redirect(url_for('main.index'))
-
-    except Exception :
-        db.session.rollback()
-        flash('Er is iets fout gegaan bij het verwijderen van de workout.', 'error')
-        return redirect(url_for('main.edit_workout', plan_id=plan_id))
 
 
 @main.route('/start_workout/<int:plan_id>', methods=['GET'])
@@ -1318,8 +1225,6 @@ def workout_session_detail(session_id):
                            duration_minutes=duration_minutes)
 
 
-
-
 @main.route('/get_workout_progress/<session_id>')
 @login_required
 def get_workout_progress(session_id):
@@ -1395,20 +1300,3 @@ def archived_plans():
     workout_data = get_workout_data(workout_plans)
 
     return render_template('archived_workouts.html', workout_data=workout_data)
-
-# Error handlers
-@main.errorhandler(404)
-def page_not_found(error):
-    logger.error(f"404 Error: {str(error)}, Path: {request.path}, User: {current_user.id if current_user.is_authenticated else 'Anonymous'}")
-    return render_template('404.html', error=error), 404
-
-@main.errorhandler(500)
-def internal_server_error(error):
-    logger.error(f"500 Error: {str(error)}, Path: {request.path}, User: {current_user.id if current_user.is_authenticated else 'Anonymous'}", exc_info=True)
-    return render_template('500.html', error=error), 500
-
-@main.errorhandler(CSRFError)
-def handle_csrf_error(error):
-    logger.error(f"CSRF Error: {str(error)}, Path: {request.path}")
-    flash("Ongeldige sessie. Probeer opnieuw.", "error")
-    return render_template('400.html'), 400

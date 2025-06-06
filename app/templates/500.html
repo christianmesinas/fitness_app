@@ -1,7 +1,19 @@
+
 {% extends "base.html" %}
 
 {% block content %}
-    <h1>{{ 'An unexpected error has occurred' }}</h1>
-    <p>{{ 'The administrator has been notified. Sorry for the inconvenience!' }}</p>
-    <p><a href="{{ url_for('main.index') }}">{{ 'Back' }}</a></p>
+    <div class="top-bar">
+            <a href="/index">
+                <img src="/static/img/back.svg" alt="Terug knop" class="back-icon">
+            </a>
+        </div>
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 text-center">
+            <h1 class="display-4">{{ 'An unexpected error has occurred' }}</h1>
+            <p class="lead">{{ 'The administrator has been notified. Sorry for the inconvenience!' }}</p>
+            <p><a href="{{ url_for('main.index') }}" class="btn btn-secondary">Back to Home</a></p>
+        </div>
+    </div>
+</div>
 {% endblock %}
