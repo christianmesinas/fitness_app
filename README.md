@@ -49,8 +49,6 @@ pip install -r requirements.txt
 
 Configureer omgevingsvariabelen:
 
-Kopieer .env.example naar .env:cp .env.example .env
-
 
 Vul .env met je Auth0- en andere instellingen:APP_SECRET_KEY=your-secret-key-here
 DATABASE_URL=sqlite:///app.db
@@ -89,19 +87,10 @@ Start de applicatie met:docker-compose up --build
 Dit herbouwt en start de container automatisch.
 
 
-Stoppen en herstarten:
-
-Stop de container:docker stop fitness-app
-
-
-Herstart:docker start fitness-app
-
-
-
 Gebruik
 
 Inloggen/registreren: Ga naar http://localhost:5000/login of /signup en gebruik of maak je account aan.
-Onboarding: Voltooi de onboarding-stappen om je profiel in te stellen (naam, gewicht, fitnessdoelen).
+Onboarding: Voltooi de onboarding-stappen om je profiel in te stellen (naam, gewicht).
 Workouts maken: Ga naar /add_workout om een nieuw workout-plan te maken en oefeningen toe te voegen.
 Oefeningen zoeken: Gebruik /search_exercise om oefeningen te vinden en toe te voegen aan je plan.
 Gewicht loggen: Voeg gewichtlogs toe via /profile.
@@ -112,7 +101,6 @@ Ontwikkeling
 Debugging: De app draait in DEBUG-modus (DEBUG=True in config.py). Logs zijn beschikbaar in de console.
 Database-migraties: Gebruik flask db migrate en flask db upgrade na modelwijzigingen.
 Logging: Logging is geconfigureerd in app/__init__.py met een uniforme formatter.
-Testen: Voeg unittesten toe in een tests/-map (nog niet geïmplementeerd).
 
 
 Licentie
