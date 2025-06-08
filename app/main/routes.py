@@ -733,25 +733,22 @@ def complete_all_sets(plan_id):
     return jsonify({'success': False, 'error': 'Exercise not found'}), 404
 
 
-
 @main.route('/search_exercise', methods=['GET'])
 @login_required
 def search_exercise():
     form = SearchExerciseForm(request.args)
 
-    # Haal plan_id uit querystring of sessie
-    plan_id = request.args.get('plan_id', session.get('current_workout_plan_id'), type=int)
+    # Haal plan_id uit querystring
+    plan_id = request.args.get('plan_id', type=int)
 
-    # Haal plan op of maak nieuw plan aan
+    if not plan_id:
+        flash("Maak eerst een workout plan aan.", "info")
+        return redirect(url_for('main.add_workout'))
+
     plan = WorkoutPlan.query.get(plan_id)
-    if not plan:
-        plan = WorkoutPlan(user_id=current_user.id, name="Nieuw Plan")
-        db.session.add(plan)
-        db.session.commit()
-
-    # Update sessie en plan_id
-    session['current_workout_plan_id'] = plan.id
-    plan_id = plan.id
+    if not plan or plan.user_id != current_user.id:
+        flash("Workout plan niet gevonden.", "error")
+        return redirect(url_for('main.add_workout'))
 
     # Oefeningen-query
     query = Exercise.query
@@ -796,7 +793,6 @@ def search_exercise():
         plan_id=plan.id,
         pagination=pagination
     )
-
 
 @main.route('/exercise/<int:exercise_id>')
 @login_required

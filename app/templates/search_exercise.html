@@ -14,6 +14,7 @@
 
 <form class="filter-form" method="GET" id="filter-form">
     {{ form.hidden_tag() }}
+    <input type="hidden" name="plan_id" value="{{ plan_id|default(0) }}">
     <div class="form-group">
         {{ wtf.form_field(form.difficulty) }}
     </div>
@@ -31,7 +32,7 @@
     </div>
     <div class="form-group-buttons">
         <button type="submit" class="orange-btn-outline add-new-workout-btn">{{ form.submit.label.text }}</button>
-        <a href="{{ url_for('main.search_exercise') }}" class="btn btn-secondary">Reset Filters</a>
+        <a href="{{ url_for('main.search_exercise', plan_id=plan_id|default(0)) }}" class="btn btn-secondary">Reset Filters</a>
         <a href="{{ url_for('main.edit_workout', plan_id=plan_id|default(0)) }}" class="btn btn-secondary">Terug naar Workout</a>
     </div>
 </form>
@@ -48,9 +49,51 @@
 document.addEventListener("DOMContentLoaded", function () {
     const loadMoreBtn = document.getElementById("load-more-btn");
     const exerciseList = document.getElementById("exercise-list");
+    const filterForm = document.getElementById("filter-form");
     const planId = exerciseList.getAttribute('data-plan-id');
     const csrfToken = "{{ form.csrf_token._value() }}";
 
+    // Handle form submission for search/filter
+    if (filterForm) {
+        filterForm.addEventListener("submit", function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(filterForm);
+            const params = new URLSearchParams(formData);
+
+            // Make sure plan_id is included
+            if (planId && planId !== '0') {
+                params.set('plan_id', planId);
+            }
+
+            fetch(`{{ url_for('main.search_exercise') }}?${params.toString()}`, {
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest"
+                }
+            })
+            .then(response => response.text())
+            .then(data => {
+                exerciseList.innerHTML = data;
+
+                // Update URL without page reload
+                const newUrl = `${window.location.pathname}?${params.toString()}`;
+                window.history.pushState({}, '', newUrl);
+
+                // Hide/show load more button based on results
+                const hasResults = exerciseList.children.length > 0;
+                if (loadMoreBtn) {
+                    loadMoreBtn.style.display = hasResults ? 'block' : 'none';
+                    loadMoreBtn.setAttribute("data-next-page", "2");
+                }
+            })
+            .catch(error => {
+                console.error("Fout bij zoeken:", error);
+                alert("Er ging iets mis bij het zoeken.");
+            });
+        });
+    }
+
+    // Load more functionality
     if (loadMoreBtn) {
         loadMoreBtn.addEventListener("click", function () {
             const nextPage = this.getAttribute("data-next-page");
@@ -92,7 +135,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
             const exerciseId = e.target.getAttribute("data-exercise-id");
             const nextUrl = e.target.getAttribute("data-next");
-            if (!exerciseId || !planId) {
+            if (!exerciseId || !planId || planId === '0') {
                 alert("Geen workout geselecteerd of ongeldige oefening.");
                 return;
             }

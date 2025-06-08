@@ -12,10 +12,6 @@
 <section class="header-section">
     <h1>Workout van {{ workout_session.completed_at.strftime('%d-%m-%Y %H:%M') }}</h1>
     <p>Plan: {{ workout_session.workout_plan.name if workout_session.workout_plan else 'Onbekend' }}</p>
-    <p>Duur: {{ workout_session.duration_minutes if workout_session.duration_minutes else 'N/A' }} minuten</p>
-    <p>Totale sets: {{ workout_session.total_sets }}</p>
-    <p>Totale reps: {{ workout_session.total_reps }}</p>
-    <p>Totaal gewicht: {{ workout_session.total_weight }} kg</p>
 </section>
 
 <section class="exercise-blok-section mg-btm-exercise">
