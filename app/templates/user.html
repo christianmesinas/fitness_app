@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
+
 <div class="top-bar">
     <a href="{{ url_for('main.index') }}">
         <img src="{{ url_for('static', filename='img/back.svg') }}" alt="Terug knop" class="back-icon"/>
@@ -35,8 +36,8 @@
                     <div class="mb-3">
                         {{ form.current_weight.label(class="form-label") }}
                         <div class="input-group">
-                            {{ form.current_weight(class="form-control") }}
-                            <span class="input-group-text">kg</span>
+                            {{ form.current_weight(class="form-control", type="number", step="0.1", min="0") }}
+                            <span class="input-group-text">value</span>
                         </div>
                         {% if form.current_weight.errors %}
                             <div class="text-danger">
@@ -50,7 +51,7 @@
                     <div class="mb-3">
                         {{ form.fitness_goal.label(class="form-label") }}
                         <div class="input-group">
-                            {{ form.fitness_goal(class="form-control") }}
+                            {{ form.fitness_goal(class="form-control", type="number", step="0.1", min="0") }}
                             <span class="input-group-text">kg</span>
                         </div>
                         {% if form.fitness_goal.errors %}
@@ -64,7 +65,7 @@
 
                     <div class="mb-3">
                         {{ form.weekly_workouts.label(class="form-label") }}
-                        {{ form.weekly_workouts(class="form-control") }}
+                        {{ form.weekly_workouts(class="form-control", type="number", min="0") }}
                         {% if form.weekly_workouts.errors %}
                             <div class="text-danger">
                                 {% for error in form.weekly_workouts.errors %}
@@ -85,7 +86,7 @@
         <div class="card mb-3">
             <div class="card-body">
                 <h5 class="card-title">Gewicht bijhouden</h5>
-                <form method="POST">
+                <form method="POST" id="add-weight-form">
                     {{ weight_form.hidden_tag() }}
 
                     <div class="row">
@@ -93,9 +94,11 @@
                             <div class="mb-3">
                                 {{ weight_form.weight.label(class="form-label") }}
                                 <div class="input-group">
-                                    {{ weight_form.weight(class="form-control") }}
+                                    <!-- Beperk tot numerieke invoer met type="number" -->
+                                    {{ weight_form.weight(class="form-control", type="number", step="0.1", min="20", max="300", required=true, placeholder="Bijv. 70.5") }}
                                     <span class="input-group-text">kg</span>
                                 </div>
+                                <div id="weight-error" class="text-danger" style="display: none;"></div>
                                 {% if weight_form.weight.errors %}
                                     <div class="text-danger">
                                         {% for error in weight_form.weight.errors %}
@@ -269,6 +272,9 @@
 </section>
 
 <script>
+/**
+ * Vernieuw de gewichtsgrafiek via een API-call.
+ */
 function refreshChart() {
     fetch('/api/weight_chart')
         .then(response => {
@@ -280,9 +286,10 @@ function refreshChart() {
             return response.json();
         })
         .then(data => {
-            if (data.success) {
-                // Gebruik data.data voor je chart
+            if (data.is_success()) {
+                // Gebruik data.data voor de chart
                 console.log('Chart data:', data.data);
+                document.getElementById('weight-chart').src = 'data:image/png;base64,' + data.data;
             } else {
                 console.error('API error:', data.message);
             }
@@ -291,5 +298,34 @@ function refreshChart() {
             console.error('Error:', error.message);
         });
 }
+
+/**
+ * Valideer het gewicht-veld client-side om niet-numerieke invoer te voorkomen.
+ */
+document.getElementById('add-weight-form').addEventListener('submit', function(event) {
+    const weightInput = document.querySelector('input[name="weight"]');
+    const weightError = document.getElementById('weight-error');
+    const value = weightInput.value.trim();
+
+    // Controleer of de waarde een geldig getal is
+    if (!/^\d*\.?\d*$/.test(value) || isNaN(parseFloat(value))) {
+        event.preventDefault();
+        weightError.style.display = 'block';
+        weightError.textContent = 'Voer een geldig getal in (bijv. 70.5)';
+        return false;
+    }
+
+    // Controleer bereik (client-side duplicatie van server-side NumberRange)
+    const numValue = parseFloat(value);
+    if (numValue < 20 || numValue > 300) {
+        event.preventDefault();
+        weightError.style.display = 'block';
+        weightError.textContent = 'Gewicht moet tussen 20 en 300 kg zijn';
+        return false;
+    }
+
+    weightError.style.display = 'none';
+    return true;
+});
 </script>
 {% endblock %}

@@ -1,6 +1,5 @@
 import json
 from enum import Enum
-
 import pytz
 import sqlalchemy as sa
 import sqlalchemy.orm as so
@@ -10,35 +9,107 @@ from app import db
 from sqlalchemy.types import TypeDecorator, TEXT
 import uuid
 
-
 class JSONEncodedList(TypeDecorator):
+    """
+    SQLAlchemy TypeDecorator om Python-lijsten als JSON-strings op te slaan in TEXT-velden.
+
+    Attributen:
+        impl: Basistypen (TEXT) voor database-opslag.
+
+    Notities:
+        - Converteert lijsten naar JSON bij opslaan (`process_bind_param`).
+        - Parseert JSON naar lijsten bij ophalen (`process_result_value`).
+        - Gebruikt voor velden zoals Exercise.images en Exercise.instructions.
+    """
     impl = TEXT
 
     def process_bind_param(self, value, dialect):
+        """
+        Converteer een Python-lijst naar een JSON-string voor database-opslag.
+
+        Args:
+            value: De Python-lijst om op te slaan.
+            dialect: SQLAlchemy-dialect (ongebruikt).
+
+        Returns:
+            str: JSON-gecodeerde string, of '[]' als value None is.
+        """
         if value is None:
-            return '[]'
+            return '[]'  # Standaard lege lijst
         return json.dumps(value)
 
     def process_result_value(self, value, dialect):
+        """
+        Parseer een JSON-string naar een Python-lijst bij ophalen uit de database.
+
+        Args:
+            value: De JSON-string uit de database.
+            dialect: SQLAlchemy-dialect (ongebruikt).
+
+        Returns:
+            list: Geparseerde Python-lijst, of [] als value None is.
+        """
         if value is None:
             return []
         return json.loads(value)
 
 class ExperienceLevel(str, Enum):
+    """
+    Enum voor ervaringsniveaus van oefeningen.
+
+    Waarden:
+        BEGINNER: Geschikt voor nieuwkomers.
+        INTERMEDIATE: Voor gebruikers met enige ervaring.
+        EXPERT: Voor gevorderde gebruikers.
+
+    Notities:
+        - Gebruikt in Exercise.level om oefeningen te categoriseren.
+    """
     BEGINNER = "beginner"
     INTERMEDIATE = "intermediate"
     EXPERT = "expert"
 
 class Force(str, Enum):
+    """
+    Enum voor krachttypen van oefeningen.
+
+    Waarden:
+        STATIC: Geen beweging (bijv. planken).
+        PULL: Trekbewegingen (bijv. pull-ups).
+        PUSH: Duwbewegingen (bijv. push-ups).
+
+    Notities:
+        - Gebruikt in Exercise.force om bewegingstypen te specificeren.
+    """
     STATIC = "static"
     PULL = "pull"
     PUSH = "push"
 
 class Mechanic(str, Enum):
+    """
+    Enum voor mechanische aard van oefeningen.
+
+    Waarden:
+        ISOLATION: Gericht op één spiergroep.
+        COMPOUND: Meerdere spiergroepen tegelijk.
+
+    Notities:
+        - Gebruikt in Exercise.mechanic om oefeningcomplexiteit aan te duiden.
+    """
     ISOLATION = "isolation"
     COMPOUND = "compound"
 
 class Equipment(str, Enum):
+    """
+    Enum voor benodigde apparatuur bij oefeningen.
+
+    Waarden:
+        MEDICINE_BALL, DUMBBELL, BODY_ONLY, etc.: Specifieke apparatuur of geen.
+
+    Notities:
+        - Gebruikt in Exercise.equipment om vereiste middelen te specificeren.
+        - 'OTHER' vangt niet-gestandaardiseerde apparatuur op.
+    """
     MEDICINE_BALL = "medicine ball"
     DUMBBELL = "dumbbell"
     BODY_ONLY = "body only"
@@ -53,6 +124,16 @@ class Equipment(str, Enum):
     OTHER = "other"
 
 class Muscle(str, Enum):
+    """
+    Enum voor spiergroepen die door oefeningen worden getraind.
+
+    Waarden:
+        ABDOMINALS, BICEPS, CHEST, etc.: Specifieke spiergroepen.
+
+    Notities:
+        - Gebruikt in ExerciseMuscle.muscle en exercise_muscle_association.
+        - Ondersteunt primaire en secundaire spiergroepen in oefeningen.
+    """
     ABDOMINALS = "abdominals"
     ABDUCTORS = "abductors"
     ADDUCTORS = "adductors"
@@ -72,6 +153,16 @@ class Muscle(str, Enum):
     TRICEPS = "triceps"
 
 class Category(str, Enum):
+    """
+    Enum voor oefeningcategorieën.
+
+    Waarden:
+        POWERLIFTING, STRENGTH, CARDIO, etc.: Specifieke trainingsdoelen.
+
+    Notities:
+        - Gebruikt in Exercise.category om oefeningen te groeperen.
+        - Ondersteunt zoekfilters in de UI.
+    """
     POWERLIFTING = "powerlifting"
     STRENGTH = "strength"
     STRETCHING = "stretching"
@@ -81,6 +172,30 @@ class Category(str, Enum):
     PLYOMETRICS = "plyometrics"
 
 class User(db.Model):
+    """
+    Model voor gebruikers in de FitTrack-applicatie.
+
+    Attributen:
+        id: Primaire sleutel.
+        auth0_id: Unieke Auth0-identificator.
+        name: Gebruikersnaam (optioneel tijdens onboarding).
+        email: Uniek e-mailadres.
+        last_seen: Laatste activiteitstijdstip.
+        current_weight: Huidig gewicht (kg).
+        fitness_goal: Doelgewicht (kg).
+        weekly_workouts: Aantal gewenste wekelijkse workouts.
+        registration_step: Huidige onboarding-stap.
+        weight_logs: Relatie naar WeightLog-records.
+        exercise_logs: Relatie naar ExerciseLog-records.
+        workout_plans: Relatie naar WorkoutPlan-records.
+        current_workout_plan_id: Foreign key naar actieve WorkoutPlan.
+        current_workout_plan: Relatie naar actieve WorkoutPlan.
+
+    Notities:
+        - Gebruikt Auth0 voor authenticatie (auth0_id).
+        - Relaties hebben cascade="all, delete-orphan" om gerelateerde records te verwijderen bij user-verwijdering.
+        - Implementeert Flask-Login eigenschappen (is_active, is_authenticated, etc.).
+    """
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     auth0_id: so.Mapped[str] = so.mapped_column(sa.String(64), unique=True, nullable=False)
     name: so.Mapped[Optional[str]] = so.mapped_column(sa.String(64), index=True, nullable=True)
@@ -91,43 +206,54 @@ class User(db.Model):
     weekly_workouts: so.Mapped[Optional[int]] = so.mapped_column()
     registration_step: so.Mapped[Optional[str]] = so.mapped_column(sa.String(20), default='name')
     weight_logs: so.WriteOnlyMapped['WeightLog'] = so.relationship(back_populates='user', cascade="all, delete-orphan")
-
     exercise_logs: so.WriteOnlyMapped['ExerciseLog'] = so.relationship(back_populates='user', cascade="all, delete-orphan")
-
-    # Verwijzing naar alle plannen van deze gebruiker
     workout_plans: so.WriteOnlyMapped['WorkoutPlan'] = so.relationship(
         back_populates='user',
         cascade="all, delete-orphan",
         foreign_keys='WorkoutPlan.user_id'
     )
-
-    # Actieve workout plan
     current_workout_plan_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey('workout_plan.id'))
     current_workout_plan: so.Mapped[Optional['WorkoutPlan']] = so.relationship(
         'WorkoutPlan',
         foreign_keys=[current_workout_plan_id],
-        post_update=True
+        post_update=True  # Voorkomt circulaire updates
     )
 
     @property
     def is_active(self):
+        """Vlag of de gebruiker actief is (voor Flask-Login)."""
         return True
 
     @property
     def is_authenticated(self):
+        """Vlag of de gebruiker is geauthenticeerd (voor Flask-Login)."""
         return True
 
     @property
     def is_anonymous(self):
+        """Vlag of de gebruiker anoniem is (voor Flask-Login)."""
         return False
 
     def get_id(self):
+        """
+        Haal de gebruikers-ID op als string (voor Flask-Login).
+
+        Returns:
+            str: De ID van de gebruiker.
+        """
         return str(self.id)
 
     def __repr__(self):
+        """String-representatie van het User-object."""
         return f'<User {self.name}>'
 
     def to_dict(self):
+        """
+        Converteer User-object naar dictionary voor JSON-responsen.
+
+        Returns:
+            dict: Gebruikersgegevens inclusief ID, naam, e-mail, etc.
+        """
         return {
             'id': self.id,
             'username': self.name,
@@ -138,9 +264,19 @@ class User(db.Model):
             'last_seen': self.last_seen.isoformat() if self.last_seen else None
         }
 
-
-
 exercise_muscle_association = sa.Table(
+    """
+    Associatietabel voor veel-op-veel-relatie tussen Exercise en ExerciseMuscle.
+
+    Kolommen:
+        exercise_id: Foreign key naar Exercise.id.
+        muscle_id: Foreign key naar ExerciseMuscle.id.
+        is_primary: Boolean om primaire/secundaire spiergroepen te onderscheiden.
+
+    Notities:
+        - Gebruikt CASCADE om records te verwijderen bij verwijdering van Exercise of ExerciseMuscle.
+        - Ondersteunt filtering op primaire/secundaire spieren in relaties.
+    """
     'exercise_muscle_association',
     db.metadata,
     sa.Column('exercise_id', sa.String(50), sa.ForeignKey('exercise.id', ondelete='CASCADE'), primary_key=True),
@@ -148,29 +284,54 @@ exercise_muscle_association = sa.Table(
     sa.Column('is_primary', sa.Boolean, nullable=False)
 )
 
-
 class WeightLog(db.Model):
+    """
+    Model voor het loggen van gewichtsmetingen van gebruikers.
+
+    Attributen:
+        id: Primaire sleutel.
+        user_id: Foreign key naar User.id.
+        weight: Gewicht in kg.
+        logged_at: Tijdstip van meting.
+        notes: Optionele opmerkingen.
+        user: Relatie naar User.
+
+    Notities:
+        - Gebruikt voor gewichtsverloopgrafieken en statistieken.
+        - Automatisch timestamp met UTC-tijdzone.
+    """
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('user.id'), nullable=False)
     weight: so.Mapped[float] = so.mapped_column(nullable=False)
     logged_at: so.Mapped[datetime] = so.mapped_column(default=lambda: datetime.now(timezone.utc))
     notes: so.Mapped[Optional[str]] = so.mapped_column(sa.String(200))
-
     user: so.Mapped['User'] = so.relationship('User', back_populates='weight_logs')
 
     def __repr__(self):
+        """String-representatie van het WeightLog-object."""
         return f'<WeightLog {self.weight}kg on {self.logged_at.date()}>'
 
-
 class ExerciseMuscle(db.Model):
+    """
+    Model voor spiergroepen die door oefeningen worden getraind.
+
+    Attributen:
+        id: Primaire sleutel.
+        muscle: Enum-waarde uit Muscle.
+        exercises_primary: Relatie naar Exercises waar deze spier primair is.
+        exercises_secondary: Relatie naar Exercises waar deze spier secundair is.
+
+    Notities:
+        - Gebruikt exercise_muscle_association voor veel-op-veel-relaties.
+        - Onderscheidt primaire en secundaire spieren met is_primary.
+    """
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     muscle: so.Mapped[str] = so.mapped_column(sa.Enum(Muscle), nullable=False)
-
     exercises_primary: so.WriteOnlyMapped['Exercise'] = so.relationship(
         secondary=lambda: exercise_muscle_association,
         primaryjoin=lambda: (exercise_muscle_association.c.muscle_id == ExerciseMuscle.id) & (exercise_muscle_association.c.is_primary == True),
         back_populates='primary_muscles',
-        overlaps="exercises_secondary,secondary_muscles"
+        overlaps="exercises_secondary,secondary_muscles"  # Voorkomt relatieconflicten
     )
     exercises_secondary: so.WriteOnlyMapped['Exercise'] = so.relationship(
         secondary=lambda: exercise_muscle_association,
@@ -180,9 +341,30 @@ class ExerciseMuscle(db.Model):
     )
 
     def __repr__(self):
+        """String-representatie van het ExerciseMuscle-object."""
         return f'<ExerciseMuscle {self.muscle}>'
 
 class Exercise(db.Model):
+    """
+    Model voor fitness-oefeningen.
+
+    Attributen:
+        id: String-gebaseerde primaire sleutel.
+        name: Oefeningnaam.
+        force: Type kracht (Enum Force).
+        level: Ervaringsniveau (Enum ExperienceLevel).
+        mechanic: Mechanische aard (Enum Mechanic).
+        equipment: Benodigde apparatuur (Enum Equipment).
+        category: Oefeningcategorie (Enum Category).
+        instructions: JSON-gecodeerde instructielijst.
+        images: JSON-gecodeerde afbeeldingslijst.
+        primary_muscles: Relatie naar primaire spiergroepen.
+        secondary_muscles: Relatie naar secundaire spiergroepen.
+
+    Notities:
+        - Gebruikt JSONEncodedList voor instructions en images.
+        - Veel-op-veel-relaties met ExerciseMuscle via exercise_muscle_association.
+    """
     id: so.Mapped[str] = so.mapped_column(sa.String(50), primary_key=True)
     name: so.Mapped[str] = so.mapped_column(sa.String(100), index=True)
     force: so.Mapped[Optional[str]] = so.mapped_column(sa.Enum(Force))
@@ -192,12 +374,11 @@ class Exercise(db.Model):
     category: so.Mapped[str] = so.mapped_column(sa.Enum(Category), index=True)
     instructions: so.Mapped[str] = so.mapped_column(sa.Text)
     images: so.Mapped[str] = so.mapped_column(sa.Text)
-
     primary_muscles: so.WriteOnlyMapped['ExerciseMuscle'] = so.relationship(
         secondary=lambda: exercise_muscle_association,
         primaryjoin=lambda: (exercise_muscle_association.c.exercise_id == Exercise.id) & (exercise_muscle_association.c.is_primary == True),
         back_populates='exercises_primary',
-        overlaps = "exercises_secondary,secondary_muscles"
+        overlaps="exercises_secondary,secondary_muscles"
     )
     secondary_muscles: so.WriteOnlyMapped['ExerciseMuscle'] = so.relationship(
         primaryjoin=lambda: (exercise_muscle_association.c.exercise_id == Exercise.id) & (exercise_muscle_association.c.is_primary == False),
@@ -207,10 +388,17 @@ class Exercise(db.Model):
     )
 
     def __repr__(self):
+        """String-representatie van het Exercise-object."""
         return f'<Exercise {self.name}>'
 
     @property
     def images_list(self):
+        """
+        Haal de lijst van afbeeldingen op als Python-lijst.
+
+        Returns:
+            list: Geparseerde afbeeldingslijst, of [] bij fouten.
+        """
         try:
             return json.loads(self.images) if self.images else []
         except json.JSONDecodeError:
@@ -218,19 +406,33 @@ class Exercise(db.Model):
 
     @images_list.setter
     def images_list(self, value):
+        """
+        Stel de afbeeldingslijst in als JSON-string.
+
+        Args:
+            value: Lijst van afbeeldingspaden.
+        """
         self.images = json.dumps(value)
 
     def to_dict(self):
-        image_list = self.images_list  # gebruikt je property, clean en DRY
+        """
+        Converteer Exercise-object naar dictionary voor JSON-responsen.
 
+        Returns:
+            dict: Oefeninggegevens met genormaliseerde afbeeldingspaden.
+
+        Notities:
+            - Genereert fallback-afbeeldingspaden op basis van oefeningnaam.
+            - Parseert instructions als JSON-lijst.
+        """
+        image_list = self.images_list  # Gebruikt property voor consistentie
         fixed_images = []
         for img_path in image_list:
             if not img_path.startswith("img/exercises/"):
-                safe_name = self.name.strip().replace(" ", "_")
+                safe_name = self.name.strip().replace(" ", "_")  # Normaliseer naam
                 fixed_images.append(f"img/exercises/{safe_name}/0.jpg")
             else:
                 fixed_images.append(img_path)
-
         if not fixed_images:
             safe_name = self.name.strip().replace(" ", "_")
             fixed_images = [f"img/exercises/{safe_name}/0.jpg"]
@@ -248,6 +450,22 @@ class Exercise(db.Model):
         }
 
 class WorkoutPlan(db.Model):
+    """
+    Model voor workout-plannen van gebruikers.
+
+    Attributen:
+        id: Primaire sleutel.
+        user_id: Foreign key naar User.id.
+        name: Naam van het plan.
+        is_archived: Vlag voor gearchiveerde status.
+        created_at: Aanmaaktijdstip.
+        user: Relatie naar User.
+        exercises: Dynamische relatie naar WorkoutPlanExercise.
+
+    Notities:
+        - Ondersteunt archivering voor UI-filtering.
+        - Relatie met exercises is lazy="dynamic" voor flexibele queries.
+    """
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('user.id'), index=True)
     name: so.Mapped[str] = so.mapped_column(sa.String(100))
@@ -260,9 +478,16 @@ class WorkoutPlan(db.Model):
     exercises = db.relationship("WorkoutPlanExercise", back_populates="workout_plan", lazy="dynamic")
 
     def __repr__(self):
+        """String-representatie van het WorkoutPlan-object."""
         return f'<WorkoutPlan {self.name}>'
 
     def to_dict(self):
+        """
+        Converteer WorkoutPlan-object naar dictionary voor JSON-responsen.
+
+        Returns:
+            dict: Plan-gegevens inclusief ID, naam, en status.
+        """
         return {
             'id': self.id,
             'name': self.name,
@@ -272,6 +497,26 @@ class WorkoutPlan(db.Model):
         }
 
 class WorkoutPlanExercise(db.Model):
+    """
+    Model voor oefeningen binnen een workout-plan.
+
+    Attributen:
+        id: Primaire sleutel.
+        workout_plan_id: Foreign key naar WorkoutPlan.id.
+        exercise_id: Foreign key naar Exercise.id.
+        sets: Aantal sets.
+        reps: Aantal herhalingen per set.
+        duration: Duur per set (minuten).
+        order: Volgorde van oefening in plan.
+        weight: Gewicht per set (kg).
+        workout_plan: Relatie naar WorkoutPlan.
+        exercise: Relatie naar Exercise.
+        set_logs: Relatie naar SetLog.
+
+    Notities:
+        - Ondersteunt flexibele configuratie van sets, reps, en gewicht.
+        - Order-veld bepaalt weergavevolgorde in UI.
+    """
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     workout_plan_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('workout_plan.id'), index=True)
     exercise_id: so.Mapped[str] = so.mapped_column(sa.ForeignKey('exercise.id'), index=True)
@@ -280,15 +525,38 @@ class WorkoutPlanExercise(db.Model):
     duration: so.Mapped[Optional[int]] = so.mapped_column()
     order: so.Mapped[int] = so.mapped_column(default=0)
     weight: so.Mapped[Optional[float]] = so.mapped_column()
-
     workout_plan = so.relationship("WorkoutPlan", back_populates="exercises")
     exercise: so.Mapped['Exercise'] = so.relationship()
     set_logs: so.WriteOnlyMapped['SetLog'] = so.relationship(back_populates="workout_plan_exercise")
 
     def __repr__(self):
+        """String-representatie van het WorkoutPlanExercise-object."""
         return f'<WorkoutPlanExercise {self.exercise_id} in {self.workout_plan_id}>'
 
 class ExerciseLog(db.Model):
+    """
+    Model voor het loggen van voltooide oefeningen.
+
+    Attributen:
+        id: Primaire sleutel.
+        user_id: Foreign key naar User.id.
+        exercise_id: Foreign key naar Exercise.id.
+        workout_plan_id: Foreign key naar WorkoutPlan.id (optioneel).
+        completed_at: Tijdstip van voltooiing.
+        completed: Vlag of oefening is voltooid.
+        sets: Aantal sets.
+        reps: Gemiddelde herhalingen.
+        weight: Gemiddeld gewicht (kg).
+        duration: Totale duur (minuten).
+        notes: Optionele opmerkingen.
+        user: Relatie naar User.
+        exercise: Relatie naar Exercise.
+        workout_plan: Relatie naar WorkoutPlan.
+
+    Notities:
+        - Gebruikt voor samenvatting van workout-prestaties.
+        - Aggregatie van SetLog-data bij workout-voltooiing.
+    """
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('user.id'), index=True)
     exercise_id: so.Mapped[str] = so.mapped_column(sa.ForeignKey('exercise.id'), index=True)
@@ -300,15 +568,21 @@ class ExerciseLog(db.Model):
     weight: so.Mapped[Optional[float]] = so.mapped_column()
     duration: so.Mapped[Optional[int]] = so.mapped_column()
     notes: so.Mapped[Optional[str]] = so.mapped_column(sa.Text)
-
     user: so.Mapped['User'] = so.relationship(back_populates='exercise_logs')
     exercise: so.Mapped['Exercise'] = so.relationship()
     workout_plan: so.Mapped[Optional['WorkoutPlan']] = so.relationship()
 
     def __repr__(self):
+        """String-representatie van het ExerciseLog-object."""
         return f'<ExerciseLog {self.exercise_id} by {self.user_id}>'
 
     def to_dict(self):
+        """
+        Converteer ExerciseLog-object naar dictionary voor JSON-responsen.
+
+        Returns:
+            dict: Log-gegevens inclusief ID, sets, reps, en tijdstippen.
+        """
         return {
             'id': self.id,
             'user_id': self.user_id,
@@ -324,32 +598,60 @@ class ExerciseLog(db.Model):
         }
 
 class SetLog(db.Model):
-    __tablename__ = 'set_logs'
+    """
+    Model voor het loggen van individuele sets binnen een workout.
 
+    Attributen:
+        id: Primaire sleutel.
+        user_id: Foreign key naar User.id.
+        workout_plan_id: Foreign key naar WorkoutPlan.id (optioneel).
+        exercise_id: Foreign key naar Exercise.id.
+        workout_plan_exercise_id: Foreign key naar WorkoutPlanExercise.id (optioneel).
+        set_number: Volgnummer van de set.
+        reps: Aantal herhalingen.
+        weight: Gewicht (kg).
+        completed: Vlag of set is voltooid.
+        created_at: Aanmaaktijdstip.
+        completed_at: Voltooiingstijdstip.
+        workout_session_id: UUID van WorkoutSession.
+        user: Relatie naar User.
+        workout_plan: Relatie naar WorkoutPlan.
+        exercise: Relatie naar Exercise.
+        workout_plan_exercise: Relatie naar WorkoutPlanExercise.
+
+    Notities:
+        - Ondersteunt gedetailleerde logging van workout-progressie.
+        - Gebruikt SET NULL voor workout_plan_id om integriteit te behouden bij plan-verwijdering.
+    """
+    __tablename__ = 'set_logs'
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
-    workout_plan_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey('workout_plan.id', ondelete='SET NULL'), nullable=True)  # Changed to nullable=True and SET NULL
+    workout_plan_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey('workout_plan.id', ondelete='SET NULL'), nullable=True)
     exercise_id: so.Mapped[str] = so.mapped_column(sa.ForeignKey('exercise.id', ondelete='CASCADE'), nullable=False)
     workout_plan_exercise_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey('workout_plan_exercise.id', ondelete='SET NULL'), nullable=True)
     set_number: so.Mapped[int] = so.mapped_column(nullable=False)
     reps: so.Mapped[int] = so.mapped_column(nullable=False)
     weight: so.Mapped[float] = so.mapped_column(default=0.0)
     completed: so.Mapped[bool] = so.mapped_column(default=False)
-
     created_at: so.Mapped[datetime] = so.mapped_column(sa.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     completed_at: so.Mapped[Optional[datetime]] = so.mapped_column(sa.DateTime(timezone=True), nullable=True)
-
     workout_session_id: so.Mapped[Optional[str]] = so.mapped_column(sa.String(36), nullable=True)
-
     user: so.Mapped['User'] = so.relationship(backref='set_logs')
-    workout_plan: so.Mapped[Optional['WorkoutPlan']] = so.relationship(backref='set_logs')  # Updated to Optional
+    workout_plan: so.Mapped[Optional['WorkoutPlan']] = so.relationship(backref='set_logs')
     exercise: so.Mapped['Exercise'] = so.relationship(backref='set_logs')
     workout_plan_exercise: so.Mapped[Optional['WorkoutPlanExercise']] = so.relationship(back_populates='set_logs')
 
     def __repr__(self):
+        """String-representatie van het SetLog-object."""
         return f'<SetLog {self.id}: User {self.user_id}, Exercise {self.exercise_id}, Set {self.set_number}>'
 
     def to_dict(self):
+        """
+        Converteer SetLog-object naar dictionary voor JSON-responsen.
+
+        Returns:
+            dict: Set-gegevens inclusief ID, reps, gewicht, en tijdstippen.
+        """
         return {
             'id': self.id,
             'set_number': self.set_number,
@@ -361,29 +663,54 @@ class SetLog(db.Model):
             'exercise_name': self.exercise.name if self.exercise else None
         }
 
-
 class WorkoutSession(db.Model):
-    __tablename__ = 'workout_sessions'
+    """
+    Model voor workout-sessies van gebruikers.
 
+    Attributen:
+        id: UUID-gebaseerde primaire sleutel.
+        user_id: Foreign key naar User.id.
+        workout_plan_id: Foreign key naar WorkoutPlan.id.
+        started_at: Starttijdstip.
+        completed_at: Voltooiingstijdstip.
+        duration_minutes: Duur in minuten.
+        total_sets: Totaal aantal sets.
+        total_reps: Totaal aantal herhalingen.
+        total_weight: Totaal gewicht (kg * reps).
+        is_completed: Vlag of sessie is voltooid.
+        is_archived: Vlag of sessie is gearchiveerd.
+        user: Relatie naar User.
+        workout_plan: Relatie naar WorkoutPlan.
+
+    Notities:
+        - Gebruikt UUID voor unieke sessie-identificatie.
+        - Statistieken worden berekend via calculate_statistics.
+    """
+    __tablename__ = 'workout_sessions'
     id: so.Mapped[str] = so.mapped_column(sa.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('user.id'), nullable=False)
     workout_plan_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('workout_plan.id'), nullable=False)
-
     started_at: so.Mapped[datetime] = so.mapped_column(sa.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     completed_at: so.Mapped[Optional[datetime]] = so.mapped_column(sa.DateTime(timezone=True), nullable=True)
     duration_minutes: so.Mapped[Optional[int]] = so.mapped_column(nullable=True)
-
     total_sets: so.Mapped[int] = so.mapped_column(default=0)
     total_reps: so.Mapped[int] = so.mapped_column(default=0)
     total_weight: so.Mapped[float] = so.mapped_column(default=0.0)
-
     is_completed: so.Mapped[bool] = so.mapped_column(default=False)
     is_archived: so.Mapped[bool] = so.mapped_column(sa.Boolean, default=False)
-
     user: so.Mapped['User'] = so.relationship(backref='workout_sessions')
     workout_plan: so.Mapped['WorkoutPlan'] = so.relationship(backref='workout_sessions')
 
     def __init__(self, **kwargs):
+        """
+        Initialiseer WorkoutSession met tijdzone-correcties.
+
+        Args:
+            **kwargs: Attributen voor WorkoutSession.
+
+        Notities:
+            - Voegt UTC-tijdzone toe aan started_at en completed_at indien ontbrekend.
+        """
         super().__init__(**kwargs)
         if self.started_at and self.started_at.tzinfo is None:
             self.started_at = self.started_at.replace(tzinfo=pytz.UTC)
@@ -391,12 +718,18 @@ class WorkoutSession(db.Model):
             self.completed_at = self.completed_at.replace(tzinfo=pytz.UTC)
 
     def calculate_statistics(self):
-        set_logs = SetLog.query.filter_by(workout_session_id=self.id, completed=True).all()
+        """
+        Bereken statistieken voor de workout-sessie op basis van SetLogs.
 
+        Notities:
+            - Telt totaal aantal sets, herhalingen, en gewicht (reps * gewicht).
+            - Berekent duur in minuten als started_at en completed_at beschikbaar zijn.
+            - Update object-attributen direct.
+        """
+        set_logs = SetLog.query.filter_by(workout_session_id=self.id, completed=True).all()
         self.total_sets = len(set_logs)
         self.total_reps = sum(log.reps for log in set_logs)
         self.total_weight = sum(log.reps * log.weight for log in set_logs)
-
         if self.started_at and self.completed_at:
             started_at = self.started_at if self.started_at.tzinfo else self.started_at.replace(tzinfo=pytz.UTC)
             completed_at = self.completed_at if self.completed_at.tzinfo else self.completed_at.replace(tzinfo=pytz.UTC)
@@ -406,6 +739,12 @@ class WorkoutSession(db.Model):
             self.duration_minutes = 0
 
     def to_dict(self):
+        """
+        Converteer WorkoutSession-object naar dictionary voor JSON-responsen.
+
+        Returns:
+            dict: Sessie-gegevens inclusief statistieken en tijdstippen.
+        """
         return {
             'id': self.id,
             'workout_plan_name': self.workout_plan.name if self.workout_plan else None,

@@ -37,6 +37,8 @@ logger.debug("Main blueprint geïmporteerd in routes.py")
 
 @main.route('/')
 def landing():
+    # Toon de landingspagina of redirect naar index voor ingelogde gebruikers.
+
     logger.debug(f"Landing route, is_authenticated: {current_user.is_authenticated}, session: {session.get('_user_id')}")
     if current_user.is_authenticated:
         logger.debug(f"Gebruiker ingelogd: {current_user.name}")
@@ -51,6 +53,8 @@ def landing():
 @main.route('/index')
 @login_required
 def index():
+    # Toon het dashboard met workout-plannen van de gebruiker.
+
     logger.debug(f"Index route aangeroepen voor {current_user.name}")
     # Controleer onboarding-status
     onboarding_redirect = check_onboarding_status(current_user)
@@ -58,7 +62,7 @@ def index():
         logger.debug(f"Redirect naar onboarding-stap: {onboarding_redirect}")
         return redirect(onboarding_redirect)
 
-    # Only fetch non-archived workout plans
+    # Haal niet-gearchiveerde workout-plannen op
     workout_plans = get_user_workout_plans(current_user.id, archived=False)
     workout_data = get_workout_data(workout_plans)
     delete_form = DeleteWorkoutForm()
@@ -67,6 +71,8 @@ def index():
 
 @main.route('/login')
 def login():
+    #  Start het inlogproces via Auth0.
+
     logger.debug("Login route aangeroepen")
 
     if current_user.is_authenticated:
@@ -75,7 +81,7 @@ def login():
         session.clear()
 
     try:
-        from app import oauth  # Lazy import
+        from app import oauth  # Lazy import om import-tijd te verminderen
         redirect_response = oauth.auth0.authorize_redirect(redirect_uri=url_for('main.callback', _external=True))
         logger.debug(f"Auth0 login redirect URL: {redirect_response.location}")
         return redirect_response
@@ -87,6 +93,8 @@ def login():
 
 @main.route('/signup')
 def signup():
+    #  Start het aanmeldproces via Auth0.
+
     logger.debug("Signup route aangeroepen")
 
     if current_user.is_authenticated:
@@ -109,15 +117,22 @@ def signup():
 
 @main.route('/callback')
 def callback():
+    #  Verwerk Auth0-callback na login of signup.
     try:
         from app import oauth, db
+        # Haal toegangstoken op
+
         token = oauth.auth0.authorize_access_token()
         if not token:
             logger.error("Geen toegangstoken ontvangen van Auth0.")
             flash('Authenticatie mislukt.')
             return redirect(url_for('main.landing'))
 
+        # Haal gebruikersinfo op
+
         userinfo = oauth.auth0.get(f"https://{current_app.config['AUTH0_DOMAIN']}/userinfo").json()
+
+        # Zoek of maak gebruiker
 
         user = User.query.filter_by(email=userinfo['email']).first()
         if not user:
@@ -131,7 +146,10 @@ def callback():
         login_user(user)
         logger.debug(f"User ingelogd: id={user.get_id()}, name={user.name}")
 
-        session['new_user'] = False  # je kan ook hier checken
+        # Markeer als bestaande gebruiker
+
+        session['new_user'] = False
+        # Controleer onboarding-status
 
         onboarding_redirect = check_onboarding_status(user)
         if onboarding_redirect:
@@ -146,6 +164,7 @@ def callback():
 
 @main.route('/logout')
 @login_required
+#  Log de gebruiker uit en redirect naar Auth0 logout.
 def logout():
     logger.debug(f"Logout route, user: {current_user.name}")
     from flask_login import logout_user
@@ -157,6 +176,8 @@ def logout():
 
 @main.route('/onboarding/name', methods=['GET', 'POST'])
 @login_required
+#  Verwerk de naam-invoerstap van onboarding.
+
 def onboarding_name():
     user = current_user
 
@@ -176,6 +197,8 @@ def onboarding_name():
 
 @main.route('/onboarding/current_weight', methods=['GET', 'POST'])
 @login_required
+#   Verwerk de huidige gewicht-invoerstap van onboarding.
+
 def onboarding_current_weight():
     form = CurrentWeightForm()
     from app import db  # Lazy import
@@ -188,13 +211,14 @@ def onboarding_current_weight():
 
 @main.route('/onboarding/goal_weight', methods=['GET', 'POST'])
 @login_required
+#     Verwerk de doelgewicht-invoerstap van onboarding.
 def onboarding_goal_weight():
     form = GoalWeightForm()
     if form.validate_on_submit():
         current_user.fitness_goal = form.fitness_goal.data
         db.session.commit()
 
-        # Doorsturen naar volgende onboarding-stap
+        # Controleer of er meer onboarding-stappen zijn
         onboarding_redirect = check_onboarding_status(current_user)
         if onboarding_redirect:
             return redirect(onboarding_redirect)
@@ -210,6 +234,7 @@ def onboarding_goal_weight():
 
 @main.route('/profile', methods=['GET', 'POST'])
 @login_required
+#   Beheer gebruikersprofiel en gewichtslog.
 def profile():
     logger.debug(f"Profile route, user: {current_user.name}")
     from app import db
@@ -253,6 +278,7 @@ def profile():
         return redirect(url_for('main.profile'))
 
     elif request.method == 'GET':
+        # Vul formulier met huidige gebruikersgegevens
         form.name.data = current_user.name
         form.current_weight.data = current_user.current_weight
         form.weekly_workouts.data = current_user.weekly_workouts
@@ -296,7 +322,7 @@ def generate_weight_chart_data(weights, user):
         plt.style.use('default')
         fig, ax = plt.subplots(figsize=(10, 6))
 
-        # Hoofdlijn
+        # Plot hoofdlijn met gewichtspunten
         ax.plot(dates, weight_values, 'o-',
                 linewidth=2.5, markersize=6,
                 color='#ff6b35', markerfacecolor='white',
@@ -319,7 +345,7 @@ def generate_weight_chart_data(weights, user):
                        alpha=0.7, linewidth=2,
                        label=f'Doel: {user.fitness_goal} kg')
 
-        # Styling
+        # Configureer assen en styling
         ax.set_xlabel('Datum', fontsize=11)
         ax.set_ylabel('Gewicht (kg)', fontsize=11)
         ax.set_title('Jouw Gewichtsontwikkeling', fontsize=14, fontweight='bold', pad=20)
@@ -385,24 +411,11 @@ def calculate_weight_statistics(weights):
         print(f"Fout bij het berekenen van statistieken: {e}")
         return None
 
-@main.route('/delete_weight/<int:weight_id>', methods=['POST'])
-@login_required
-def delete_weight(weight_id):
-    weight_log = WeightLog.query.get_or_404(weight_id)
-    if weight_log.user_id != current_user.id:
-        flash('Je hebt geen toegang tot deze gewichtsmeting.', 'error')
-        return redirect(url_for('main.profile'))
-
-    db.session.delete(weight_log)
-    db.session.commit()
-    flash('Gewichtsmeting verwijderd.', 'success')
-    return redirect(url_for('main.profile'))
-
 
 @main.route('/api/weight_chart', methods=['GET'])
 @login_required
 def api_weight_chart():
-    """API endpoint voor het ophalen van gewichtsgrafiek"""
+    """API endpoint voor het ophalen van gewichtsgrafiek als json"""
     try:
         weights = WeightLog.query.filter_by(user_id=current_user.id) \
             .order_by(WeightLog.logged_at).all()
@@ -450,10 +463,12 @@ def weight_history():
 @main.route('/workout/<int:plan_id>/add_exercise', methods=['POST'])
 @login_required
 @owns_workout_plan
+#    Voeg een oefening toe aan een workout-plan.
+
 def add_exercise_to_workout(plan_id):
     logger.debug(f"Add exercise to plan, user: {current_user.name}, user_id: {current_user.id}, plan_id: {plan_id}, request_data: {request.get_json()}")
 
-    # Haal exercise_id uit JSON of URL
+    # Haal exercise_id uit JSON, querystring, of formulier
     data = request.get_json(silent=True) or {}
     exercise_id = data.get('exercise_id')
     if not exercise_id:
@@ -522,16 +537,21 @@ def add_exercise_to_workout(plan_id):
 
 @main.route('/add_workout', methods=['GET', 'POST'])
 @login_required
+#    Maak een nieuw workout-plan aan.
+
 def add_workout():
     logger.debug(f"Add workout route, user: {current_user.name}, user_id: {current_user.id}")
     form = WorkoutPlanForm()
 
     if form.validate_on_submit():
+        # Maak nieuw workout-plan
+
         new_workout = WorkoutPlan(name=escape(form.name.data), user_id=current_user.id)
         db.session.add(new_workout)
         db.session.flush()
+        # Genereer ID zonder commit
 
-        # Add exercises from form
+        # Voeg oefeningen uit formulier toe
         for index, exercise_form in enumerate(form.exercises):
             plan_exercise = WorkoutPlanExercise(
                 workout_plan_id=new_workout.id,
@@ -543,7 +563,7 @@ def add_workout():
             )
             db.session.add(plan_exercise)
 
-        # Add exercises from session
+        # Voeg tijdelijke oefeningen uit sessie toe
         temp_exercises = session.get('temp_exercises', [])
         logger.debug(f"Saving temp_exercises: {temp_exercises}")
         for index, exercise_id in enumerate(temp_exercises, start=len(form.exercises)):
@@ -557,6 +577,8 @@ def add_workout():
             )
             db.session.add(plan_exercise)
 
+        # Stel plan in als huidig plan van gebruiker
+
         current_user.current_workout_plan = new_workout
 
         db.session.commit()
@@ -564,7 +586,7 @@ def add_workout():
         flash("Workout aangemaakt!", "success")
         return redirect(url_for('main.edit_workout', plan_id=new_workout.id))
 
-    # For GET request: load temporary exercises from session
+    # Laad tijdelijke oefeningen voor GET-verzoek
     temp_exercises = session.get('temp_exercises', [])
     logger.debug(f"Loading temp_exercises: {temp_exercises}")
     exercises = db.session.scalars(
@@ -579,6 +601,8 @@ def add_workout():
 @main.route('/edit_workout/<int:plan_id>', methods=['GET', 'POST'])
 @login_required
 @owns_workout_plan
+#    Bewerk een bestaand workout-plan.
+
 def edit_workout(plan_id):
     workout_plan = WorkoutPlan.query.get_or_404(plan_id)
 
@@ -592,6 +616,8 @@ def edit_workout(plan_id):
     delete_exercise_form = DeleteExerciseForm()
 
     if request.method == 'GET':
+        # Vul formulier met huidige plan-data
+
         form.name.data = workout_plan.name
         while form.exercises.entries:
             form.exercises.pop_entry()
@@ -607,6 +633,8 @@ def edit_workout(plan_id):
             form.exercises.append_entry(exercise_form)
         logger.debug(f"Populated {len(form.exercises.entries)} exercises in form")
 
+    # Laad alle oefeningen voor lookup
+
     exercises = Exercise.query.all()
     exercises_dict = {str(ex.id): ex for ex in exercises}
     for ex in exercises:
@@ -620,25 +648,25 @@ def edit_workout(plan_id):
     if request.method == 'POST':
         logger.debug(f"POST data: {request.form}")
         if form.validate_on_submit():
-            # Update workout name
+            # Update workout naam
             workout_plan.name = form.name.data
             db.session.add(workout_plan)
 
-            # Update existing exercises instead of deleting
+            # Verwerk oefeningen uit formulier
             for idx, exercise_form in enumerate(form.exercises):
                 exercise_id = exercise_form.exercise_id.data
                 if exercise_id == 0:
                     logger.debug(f"Skipping exercise {idx} with exercise_id=0")
                     continue
                 logger.debug(f"Processing exercise with exercise_id: {exercise_id}, order: {exercise_form.order.data}")
-                # Find matching WorkoutPlanExercise by workout_plan_id, exercise_id, and order
+                # Zoek bestaande WorkoutPlanExercise
                 plan_exercise = WorkoutPlanExercise.query.filter_by(
                     workout_plan_id=plan_id,
                     exercise_id=exercise_id,
                     order=exercise_form.order.data
                 ).first()
                 if plan_exercise:
-                    # Update existing exercise
+                    # Update bestaande oefening
                     plan_exercise.sets = exercise_form.sets.data or 0
                     plan_exercise.reps = exercise_form.reps.data or 0
                     plan_exercise.weight = exercise_form.weight.data or 0.0
@@ -647,7 +675,7 @@ def edit_workout(plan_id):
                     logger.debug(
                         f"Updated exercise {plan_exercise.id}: sets={plan_exercise.sets}, reps={plan_exercise.reps}, weight={plan_exercise.weight}")
                 else:
-                    # Create new exercise (if added)
+                    # Maak nieuwe oefening
                     logger.debug(f"Creating new exercise with exercise_id: {exercise_id}")
                     plan_exercise = WorkoutPlanExercise(
                         workout_plan_id=workout_plan.id,
@@ -695,6 +723,8 @@ def edit_workout(plan_id):
 @login_required
 @owns_workout_plan
 def add_set(plan_id):
+    #    Voeg een set toe aan een oefening in een workout-plan.
+
     data = request.get_json()
     exercise_id = data.get('exercise_id')
     plan_id = data.get('plan_id')
@@ -710,6 +740,8 @@ def add_set(plan_id):
 @main.route('/complete_all_sets/<int:plan_id>', methods=['POST'])
 @login_required
 @owns_workout_plan
+#    Markeer alle sets van een oefening als voltooid.
+
 def complete_all_sets(plan_id):
     data = request.get_json()
     exercise_id = data.get('exercise_id')
@@ -736,6 +768,8 @@ def complete_all_sets(plan_id):
 @main.route('/search_exercise', methods=['GET'])
 @login_required
 def search_exercise():
+    #    Zoek en toon oefeningen voor toevoeging aan een workout-plan.
+
     form = SearchExerciseForm(request.args)
 
     # Haal plan_id uit querystring
@@ -796,6 +830,7 @@ def search_exercise():
 
 @main.route('/exercise/<int:exercise_id>')
 @login_required
+#    Toon details van een specifieke oefening.
 def exercise_detail(exercise_id):
     exercise = Exercise.query.get_or_404(exercise_id)
 
@@ -810,6 +845,7 @@ def exercise_detail(exercise_id):
 
     fixed_images = [fix_image_path(img) for img in raw_images]
 
+    # Parseer instructies
     raw_instructions = exercise.instructions or []
     if isinstance(raw_instructions, str):
         try:
@@ -819,6 +855,8 @@ def exercise_detail(exercise_id):
             raw_instructions = []
 
     cleaned_instructions = [clean_instruction_text(step) for step in raw_instructions]
+
+    # Bereid data voor template
 
     exercise_dict = {
         'name': exercise.name,
@@ -836,6 +874,7 @@ def exercise_detail(exercise_id):
 @main.route('/plan/<int:plan_id>/exercise/<int:exercise_id>/edit', methods=['GET', 'POST'])
 @login_required
 @owns_workout_plan
+#    Bewerk een oefening in een workout-plan.
 def edit_exercise(plan_id, exercise_id):
     data = request.get_json()
 
@@ -848,7 +887,7 @@ def edit_exercise(plan_id, exercise_id):
         return jsonify({'success': False, 'error': 'Exercise not found in workout plan'}), 404
 
     try:
-        # Update the fields if provided
+        # Update alleen gevulde velden
         if sets is not None:
             plan_exercise.sets = int(sets)
         if reps is not None:
@@ -902,6 +941,7 @@ def start_workout(plan_id):
 @main.route('/save_workout/<int:plan_id>', methods=['POST'])
 @login_required
 @owns_workout_plan
+#    Sla een actieve workout op met set-logs.
 def save_workout(plan_id):
     logger.debug(
         f"Saving workout for plan_id={plan_id}, user_id={current_user.id}, session_id={session.get('current_workout_session')}")
@@ -919,11 +959,12 @@ def save_workout(plan_id):
         logger.error("No active workout session found")
         return jsonify({'success': False, 'message': 'Geen actieve workout sessie gevonden.'}), 400
 
-    # VERWIJDER BESTAANDE SETLOGS VOOR DEZE SESSIE EERST
+    # Verwijder bestaande SetLogs om herschrijven mogelijk te maken
     existing_logs = SetLog.query.filter_by(workout_session_id=session_id).all()
     for log in existing_logs:
         db.session.delete(log)
 
+    # Verwerk dynamische set-data uit formulier
     for wpe in wpes:
         set_num = 0
         while True:
@@ -958,6 +999,8 @@ def save_workout(plan_id):
         db.session.rollback()
         logger.error(f"Database error: {str(e)}")
         return jsonify({'success': False, 'message': f'Database fout: {str(e)}'}), 500
+
+    # Update sessie-statistieken
 
     workout_session = WorkoutSession.query.get(session_id)
     if workout_session:
@@ -1050,6 +1093,8 @@ def save_set():
 @main.route('/complete_workout/<int:plan_id>', methods=['POST'])
 @login_required
 @owns_workout_plan
+#    Voltooi een workout en aggregeer set-logs naar exercise-logs.
+
 def complete_workout(plan_id):
     logger.debug(f"Attempting to complete workout for plan_id={plan_id}, user_id={current_user.id}")
     try:
@@ -1065,9 +1110,13 @@ def complete_workout(plan_id):
             logger.error(f"Unauthorized: session_user_id={workout_session.user_id}, current_user_id={current_user.id}")
             return jsonify({'success': False, 'message': 'Unauthorized'}), 403
 
+        # Markeer sessie als voltooid
+
         workout_session.completed_at = datetime.now(timezone.utc)
         workout_session.is_completed = True
         workout_session.calculate_statistics()
+
+        # Haal voltooide sets op
 
         completed_sets = SetLog.query.filter_by(
             workout_session_id=session_id,
@@ -1075,12 +1124,16 @@ def complete_workout(plan_id):
         ).all()
         logger.debug(f"Found {len(completed_sets)} completed sets for session_id={session_id}")
 
+        # Groepeer sets per oefening
+
         exercise_groups = {}
         for set_log in completed_sets:
             exercise_id = set_log.exercise_id
             if exercise_id not in exercise_groups:
                 exercise_groups[exercise_id] = []
             exercise_groups[exercise_id].append(set_log)
+
+        # Maak ExerciseLogs voor elke oefening
 
         for exercise_id, sets in exercise_groups.items():
             if sets:
@@ -1154,6 +1207,8 @@ def workout_history():
 
 @main.route('/workout_session/<session_id>')
 @login_required
+#    Toon details van een workout-sessie.
+
 def workout_session_detail(session_id):
     workout_session = WorkoutSession.query.get_or_404(session_id)
 
@@ -1169,7 +1224,7 @@ def workout_session_detail(session_id):
         db.joinedload(SetLog.exercise)
     ).order_by(SetLog.exercise_id, SetLog.set_number).all()
 
-    # Groepeer per oefening en bereken statistieken
+    # Groepeer sets per oefening en bereken statistieken
     exercise_groups = {}
     total_sets = 0
     total_reps = 0
@@ -1223,20 +1278,27 @@ def workout_session_detail(session_id):
 
 @main.route('/get_workout_progress/<session_id>')
 @login_required
+#    Haal voortgang van een workout-sessie op.
 def get_workout_progress(session_id):
     workout_session = WorkoutSession.query.get_or_404(session_id)
 
     if workout_session.user_id != current_user.id:
         return jsonify({'error': 'Unauthorized'}), 403
 
+    # Tel voltooide sets
+
     completed_sets = SetLog.query.filter_by(
         workout_session_id=session_id,
         completed=True
     ).count()
 
+    # Haal totale geplande sets op
+
     total_planned_sets = db.session.query(db.func.sum(WorkoutPlanExercise.sets)).filter_by(
         workout_plan_id=workout_session.workout_plan_id
     ).scalar() or 0
+
+    # Bereken voortgang
 
     progress_percentage = (completed_sets / total_planned_sets * 100) if total_planned_sets > 0 else 0
 
@@ -1250,6 +1312,8 @@ def get_workout_progress(session_id):
 
 @main.route('/archive_workout_session/<session_id>', methods=['POST'])
 @login_required
+#    Archiveer een workout-sessie.
+
 def archive_workout_session(session_id):
     logger.debug(f"Archiving workout session: session_id={session_id}, user_id={current_user.id}")
 
@@ -1274,6 +1338,8 @@ def archive_workout_session(session_id):
 
 @main.route('/archive_workout/<int:workout_id>', methods=['POST'])
 @login_required
+#    Archiveer een workout-plan.
+
 def archive_workout(workout_id):
     logger.debug(f"Archiving workout: workout_id={workout_id}, user_id={current_user.id}")
     workout = WorkoutPlan.query.get_or_404(workout_id)
@@ -1290,6 +1356,7 @@ def archive_workout(workout_id):
 
 @main.route('/archived_plans')
 @login_required
+#     Toon gearchiveerde workout-plannen.
 def archived_plans():
     logger.debug(f"Archived plans route aangeroepen voor {current_user.name}")
     workout_plans = get_user_workout_plans(current_user.id, archived=True)
