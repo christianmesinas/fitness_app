@@ -11,15 +11,9 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
                               'sqlite:///' + os.path.join(basedir, 'app.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    MAIL_SERVER = os.getenv('MAIL_SERVER')
-    MAIL_PORT =int(os.getenv('MAIL_PORT'))
-    MAIL_USE_TLS = os.getenv('MAIL_USE_TLS') == 'True'
-    MAIL_USERNAME = os.getenv('MAIL_USERNAME')
-    MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
     SESSION_TYPE = 'filesystem'
     SESSION_PERMANENT = False
     SESSION_USE_SIGNER = True
-    MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER')
 
     AUTH0_DOMAIN = os.getenv('AUTH0_DOMAIN')
     AUTH0_CLIENT_ID = os.getenv('AUTH0_CLIENT_ID')

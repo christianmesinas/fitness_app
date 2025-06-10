@@ -10,11 +10,6 @@ import logging as logger
 class RangeInput(Input):
     """
     Aangepaste WTForms-widget voor HTML range-inputs.
-
-    Attributen:
-        input_type: Type van de input ('range').
-        validation_attrs: Lijst van HTML-attributen die worden gevalideerd.
-
     Notities:
         - Gebruikt in CurrentWeightForm voor een interactieve gewichtsinvoer.
         - Ondersteunt validatie-attributen zoals min, max, en step.
@@ -26,15 +21,6 @@ class RangeInput(Input):
 class ExerciseForm(FlaskForm):
     """
     Subformulier voor het toevoegen of bewerken van een oefening in een workout-plan.
-
-    Velden:
-        exercise_id: ID van de geselecteerde oefening (dynamische selectie).
-        sets: Aantal sets (optioneel, minimaal 0).
-        reps: Aantal herhalingen per set (optioneel, minimaal 0).
-        weight: Gewicht in kg (optioneel, minimaal 0).
-        order: Volgorde van de oefening in het plan (standaard 0).
-        is_edit: Vlag om bewerkingsmodus aan te duiden (standaard 0).
-
     Notities:
         - CSRF is uitgeschakeld omdat dit een subformulier is binnen WorkoutPlanForm.
         - Dynamische keuzes voor exercise_id worden geladen uit de Exercise-tabel.
@@ -50,10 +36,6 @@ class ExerciseForm(FlaskForm):
     def __init__(self, *args, **kwargs):
         """
         Initialiseer het formulier met dynamische oefeningkeuzes.
-
-        Args:
-            *args: Positionele argumenten voor FlaskForm.
-            **kwargs: Keyword-argumenten voor FlaskForm.
 
         Notities:
             - Laadt alle oefeningen uit de database voor de exercise_id dropdown.
@@ -77,14 +59,6 @@ class ExerciseForm(FlaskForm):
 class EditProfileForm(FlaskForm):
     """
     Formulier voor het bewerken van gebruikersprofielgegevens.
-
-    Velden:
-        name: Gebruikersnaam (verplicht, 1-64 tekens).
-        current_weight: Huidig gewicht in kg (optioneel, 20-300 kg).
-        weekly_workouts: Aantal wekelijkse workouts (optioneel, 0-20).
-        fitness_goal: Doelgewicht in kg (optioneel, 20-300 kg).
-        submit: Knop om wijzigingen op te slaan.
-
     Notities:
         - Valideert unieke naam in de database.
         - Gebruikt NumberRange voor realistische gewicht- en workout-waarden.
@@ -104,11 +78,6 @@ class EditProfileForm(FlaskForm):
     def __init__(self, original_name, *args, **kwargs):
         """
         Initialiseer het formulier met de oorspronkelijke gebruikersnaam.
-
-        Args:
-            original_name: Huidige naam van de gebruiker voor uniciteitsvalidatie.
-            *args: Positionele argumenten voor FlaskForm.
-            **kwargs: Keyword-argumenten voor FlaskForm.
         """
         super().__init__(*args, **kwargs)
         self.original_name = original_name
@@ -116,10 +85,6 @@ class EditProfileForm(FlaskForm):
     def validate_name(self, name):
         """
         Valideer dat de nieuwe naam uniek is in de database.
-
-        Args:
-            name: WTForms-veld met de ingevoerde naam.
-
         Raises:
             ValidationError: Als de naam al in gebruik is door een andere gebruiker.
         """
@@ -133,12 +98,6 @@ class EditProfileForm(FlaskForm):
 class AddWeightForm(FlaskForm):
     """
     Formulier voor het toevoegen van een gewichtsmeting.
-
-    Velden:
-        weight: Gewicht in kg (verplicht, 20-300 kg, alleen numeriek).
-        notes: Optionele opmerkingen (max 200 tekens).
-        submit: Knop om meting op te slaan.
-
     Notities:
         - Gebruikt voor gewichtslogging in de gebruikersinterface.
         - NumberRange zorgt voor realistische gewichtswaarden.
@@ -154,10 +113,6 @@ class AddWeightForm(FlaskForm):
     def validate_weight(self, weight):
         """
         Valideer dat het gewicht een geldige numerieke waarde is.
-
-        Args:
-            weight: WTForms-veld met de ingevoerde gewichtswaarde.
-
         Raises:
             ValidationError: Als de invoer geen geldige float is.
         """
@@ -171,11 +126,6 @@ class AddWeightForm(FlaskForm):
 class NameForm(FlaskForm):
     """
     Formulier voor het invoeren van de gebruikersnaam tijdens onboarding.
-
-    Velden:
-        name: Gebruikersnaam (verplicht, 2-50 tekens).
-        submit: Knop om naar de volgende stap te gaan.
-
     Notities:
         - Eerste stap in de onboarding-flow.
         - Length-validator zorgt voor redelijke naamgrenzen.
@@ -187,11 +137,6 @@ class NameForm(FlaskForm):
 class CurrentWeightForm(FlaskForm):
     """
     Formulier voor het invoeren van het huidige gewicht tijdens onboarding.
-
-    Velden:
-        current_weight: Huidig gewicht in kg (geen validatie, gebruikt RangeInput).
-        submit: Knop om naar de volgende stap te gaan.
-
     Notities:
         - Gebruikt RangeInput voor een interactieve invoer.
         - Geen expliciete validatie, afhankelijk van client-side range-attributen.
@@ -203,11 +148,6 @@ class CurrentWeightForm(FlaskForm):
 class GoalWeightForm(FlaskForm):
     """
     Formulier voor het invoeren van het doelgewicht tijdens onboarding.
-
-    Velden:
-        fitness_goal: Doelgewicht in kg (verplicht, 30-500 kg).
-        submit: Knop om naar de volgende stap te gaan.
-
     Notities:
         - Laatste stap in de onboarding-flow.
         - NumberRange zorgt voor realistische doelgewichten.
@@ -219,15 +159,6 @@ class GoalWeightForm(FlaskForm):
 class SearchExerciseForm(FlaskForm):
     """
     Formulier voor het zoeken van oefeningen met filters.
-
-    Velden:
-        search_term: Zoekterm voor oefeningnamen (optioneel).
-        difficulty: Moeilijkheidsgraad (optioneel, Enum ExperienceLevel).
-        mechanic: Mechanische aard (optioneel, Enum Mechanic).
-        category: Oefeningcategorie (optioneel, Enum Category).
-        equipment: Benodigde apparatuur (optioneel, Enum Equipment).
-        submit: Knop om zoekopdracht uit te voeren.
-
     Notities:
         - Ondersteunt geavanceerde filtering voor de oefeningbibliotheek.
         - Keuzes zijn gebaseerd op Enums uit models.py.
@@ -277,12 +208,6 @@ class SearchExerciseForm(FlaskForm):
 class WorkoutPlanForm(FlaskForm):
     """
     Formulier voor het maken of bewerken van een workout-plan.
-
-    Velden:
-        name: Naam van het plan (verplicht, 2-50 tekens).
-        exercises: Lijst van ExerciseForm-subformulieren (dynamisch).
-        submit: Knop om plan op te slaan.
-
     Notities:
         - Gebruikt FieldList voor meerdere oefeningen.
         - Valideert unieke en geldige oefeningselecties.
@@ -295,10 +220,6 @@ class WorkoutPlanForm(FlaskForm):
     def validate_exercises(self, field):
         """
         Valideer de lijst van oefeningen in het workout-plan.
-
-        Args:
-            field: WTForms FieldList met ExerciseForm-subformulieren.
-
         Notities:
             - Controleert of elke oefening een geldige exercise_id heeft (niet 0).
             - Logt exercise_ids voor debugging.
@@ -318,7 +239,6 @@ class WorkoutPlanForm(FlaskForm):
 class DeleteWorkoutForm(FlaskForm):
     """
     Formulier voor het verwijderen van een workout-plan.
-
     Notities:
         - Leeg formulier, afhankelijk van CSRF-token en route-logica.
         - Gebruikt in acties waar alleen bevestiging nodig is.
@@ -329,11 +249,6 @@ class DeleteWorkoutForm(FlaskForm):
 class DeleteExerciseForm(FlaskForm):
     """
     Formulier voor het verwijderen van een oefening uit een workout-plan.
-
-    Velden:
-        workout_plan_exercise_id: ID van de te verwijderen WorkoutPlanExercise.
-        submit: Knop om verwijdering te bevestigen.
-
     Notities:
         - Vereist een geldige waarde voor workout_plan_exercise_id.
         - Gebruikt in de workout-plan bewerkingsinterface.
@@ -345,7 +260,6 @@ class DeleteExerciseForm(FlaskForm):
 class ActiveWorkoutForm(FlaskForm):
     """
     Formulier voor het activeren van een workout-plan.
-
     Notities:
         - Leeg formulier, afhankelijk van CSRF-token en route-logica.
         - Gebruikt om een plan als actief te markeren.

@@ -12,10 +12,6 @@ import uuid
 class JSONEncodedList(TypeDecorator):
     """
     SQLAlchemy TypeDecorator om Python-lijsten als JSON-strings op te slaan in TEXT-velden.
-
-    Attributen:
-        impl: Basistypen (TEXT) voor database-opslag.
-
     Notities:
         - Converteert lijsten naar JSON bij opslaan (`process_bind_param`).
         - Parseert JSON naar lijsten bij ophalen (`process_result_value`).
@@ -26,11 +22,6 @@ class JSONEncodedList(TypeDecorator):
     def process_bind_param(self, value, dialect):
         """
         Converteer een Python-lijst naar een JSON-string voor database-opslag.
-
-        Args:
-            value: De Python-lijst om op te slaan.
-            dialect: SQLAlchemy-dialect (ongebruikt).
-
         Returns:
             str: JSON-gecodeerde string, of '[]' als value None is.
         """
@@ -41,11 +32,6 @@ class JSONEncodedList(TypeDecorator):
     def process_result_value(self, value, dialect):
         """
         Parseer een JSON-string naar een Python-lijst bij ophalen uit de database.
-
-        Args:
-            value: De JSON-string uit de database.
-            dialect: SQLAlchemy-dialect (ongebruikt).
-
         Returns:
             list: Geparseerde Python-lijst, of [] als value None is.
         """
@@ -56,12 +42,6 @@ class JSONEncodedList(TypeDecorator):
 class ExperienceLevel(str, Enum):
     """
     Enum voor ervaringsniveaus van oefeningen.
-
-    Waarden:
-        BEGINNER: Geschikt voor nieuwkomers.
-        INTERMEDIATE: Voor gebruikers met enige ervaring.
-        EXPERT: Voor gevorderde gebruikers.
-
     Notities:
         - Gebruikt in Exercise.level om oefeningen te categoriseren.
     """
@@ -72,12 +52,6 @@ class ExperienceLevel(str, Enum):
 class Force(str, Enum):
     """
     Enum voor krachttypen van oefeningen.
-
-    Waarden:
-        STATIC: Geen beweging (bijv. planken).
-        PULL: Trekbewegingen (bijv. pull-ups).
-        PUSH: Duwbewegingen (bijv. push-ups).
-
     Notities:
         - Gebruikt in Exercise.force om bewegingstypen te specificeren.
     """
@@ -88,11 +62,6 @@ class Force(str, Enum):
 class Mechanic(str, Enum):
     """
     Enum voor mechanische aard van oefeningen.
-
-    Waarden:
-        ISOLATION: Gericht op één spiergroep.
-        COMPOUND: Meerdere spiergroepen tegelijk.
-
     Notities:
         - Gebruikt in Exercise.mechanic om oefeningcomplexiteit aan te duiden.
     """
@@ -102,10 +71,6 @@ class Mechanic(str, Enum):
 class Equipment(str, Enum):
     """
     Enum voor benodigde apparatuur bij oefeningen.
-
-    Waarden:
-        MEDICINE_BALL, DUMBBELL, BODY_ONLY, etc.: Specifieke apparatuur of geen.
-
     Notities:
         - Gebruikt in Exercise.equipment om vereiste middelen te specificeren.
         - 'OTHER' vangt niet-gestandaardiseerde apparatuur op.
@@ -126,9 +91,6 @@ class Equipment(str, Enum):
 class Muscle(str, Enum):
     """
     Enum voor spiergroepen die door oefeningen worden getraind.
-
-    Waarden:
-        ABDOMINALS, BICEPS, CHEST, etc.: Specifieke spiergroepen.
 
     Notities:
         - Gebruikt in ExerciseMuscle.muscle en exercise_muscle_association.
@@ -156,9 +118,6 @@ class Category(str, Enum):
     """
     Enum voor oefeningcategorieën.
 
-    Waarden:
-        POWERLIFTING, STRENGTH, CARDIO, etc.: Specifieke trainingsdoelen.
-
     Notities:
         - Gebruikt in Exercise.category om oefeningen te groeperen.
         - Ondersteunt zoekfilters in de UI.
@@ -174,22 +133,6 @@ class Category(str, Enum):
 class User(db.Model):
     """
     Model voor gebruikers in de FitTrack-applicatie.
-
-    Attributen:
-        id: Primaire sleutel.
-        auth0_id: Unieke Auth0-identificator.
-        name: Gebruikersnaam (optioneel tijdens onboarding).
-        email: Uniek e-mailadres.
-        last_seen: Laatste activiteitstijdstip.
-        current_weight: Huidig gewicht (kg).
-        fitness_goal: Doelgewicht (kg).
-        weekly_workouts: Aantal gewenste wekelijkse workouts.
-        registration_step: Huidige onboarding-stap.
-        weight_logs: Relatie naar WeightLog-records.
-        exercise_logs: Relatie naar ExerciseLog-records.
-        workout_plans: Relatie naar WorkoutPlan-records.
-        current_workout_plan_id: Foreign key naar actieve WorkoutPlan.
-        current_workout_plan: Relatie naar actieve WorkoutPlan.
 
     Notities:
         - Gebruikt Auth0 voor authenticatie (auth0_id).
@@ -267,12 +210,6 @@ class User(db.Model):
 exercise_muscle_association = sa.Table(
     """
     Associatietabel voor veel-op-veel-relatie tussen Exercise en ExerciseMuscle.
-
-    Kolommen:
-        exercise_id: Foreign key naar Exercise.id.
-        muscle_id: Foreign key naar ExerciseMuscle.id.
-        is_primary: Boolean om primaire/secundaire spiergroepen te onderscheiden.
-
     Notities:
         - Gebruikt CASCADE om records te verwijderen bij verwijdering van Exercise of ExerciseMuscle.
         - Ondersteunt filtering op primaire/secundaire spieren in relaties.
@@ -287,14 +224,6 @@ exercise_muscle_association = sa.Table(
 class WeightLog(db.Model):
     """
     Model voor het loggen van gewichtsmetingen van gebruikers.
-
-    Attributen:
-        id: Primaire sleutel.
-        user_id: Foreign key naar User.id.
-        weight: Gewicht in kg.
-        logged_at: Tijdstip van meting.
-        notes: Optionele opmerkingen.
-        user: Relatie naar User.
 
     Notities:
         - Gebruikt voor gewichtsverloopgrafieken en statistieken.
@@ -314,13 +243,6 @@ class WeightLog(db.Model):
 class ExerciseMuscle(db.Model):
     """
     Model voor spiergroepen die door oefeningen worden getraind.
-
-    Attributen:
-        id: Primaire sleutel.
-        muscle: Enum-waarde uit Muscle.
-        exercises_primary: Relatie naar Exercises waar deze spier primair is.
-        exercises_secondary: Relatie naar Exercises waar deze spier secundair is.
-
     Notities:
         - Gebruikt exercise_muscle_association voor veel-op-veel-relaties.
         - Onderscheidt primaire en secundaire spieren met is_primary.
@@ -347,20 +269,6 @@ class ExerciseMuscle(db.Model):
 class Exercise(db.Model):
     """
     Model voor fitness-oefeningen.
-
-    Attributen:
-        id: String-gebaseerde primaire sleutel.
-        name: Oefeningnaam.
-        force: Type kracht (Enum Force).
-        level: Ervaringsniveau (Enum ExperienceLevel).
-        mechanic: Mechanische aard (Enum Mechanic).
-        equipment: Benodigde apparatuur (Enum Equipment).
-        category: Oefeningcategorie (Enum Category).
-        instructions: JSON-gecodeerde instructielijst.
-        images: JSON-gecodeerde afbeeldingslijst.
-        primary_muscles: Relatie naar primaire spiergroepen.
-        secondary_muscles: Relatie naar secundaire spiergroepen.
-
     Notities:
         - Gebruikt JSONEncodedList voor instructions en images.
         - Veel-op-veel-relaties met ExerciseMuscle via exercise_muscle_association.
@@ -408,19 +316,12 @@ class Exercise(db.Model):
     def images_list(self, value):
         """
         Stel de afbeeldingslijst in als JSON-string.
-
-        Args:
-            value: Lijst van afbeeldingspaden.
         """
         self.images = json.dumps(value)
 
     def to_dict(self):
         """
         Converteer Exercise-object naar dictionary voor JSON-responsen.
-
-        Returns:
-            dict: Oefeninggegevens met genormaliseerde afbeeldingspaden.
-
         Notities:
             - Genereert fallback-afbeeldingspaden op basis van oefeningnaam.
             - Parseert instructions als JSON-lijst.
@@ -452,15 +353,6 @@ class Exercise(db.Model):
 class WorkoutPlan(db.Model):
     """
     Model voor workout-plannen van gebruikers.
-
-    Attributen:
-        id: Primaire sleutel.
-        user_id: Foreign key naar User.id.
-        name: Naam van het plan.
-        is_archived: Vlag voor gearchiveerde status.
-        created_at: Aanmaaktijdstip.
-        user: Relatie naar User.
-        exercises: Dynamische relatie naar WorkoutPlanExercise.
 
     Notities:
         - Ondersteunt archivering voor UI-filtering.
@@ -499,20 +391,6 @@ class WorkoutPlan(db.Model):
 class WorkoutPlanExercise(db.Model):
     """
     Model voor oefeningen binnen een workout-plan.
-
-    Attributen:
-        id: Primaire sleutel.
-        workout_plan_id: Foreign key naar WorkoutPlan.id.
-        exercise_id: Foreign key naar Exercise.id.
-        sets: Aantal sets.
-        reps: Aantal herhalingen per set.
-        duration: Duur per set (minuten).
-        order: Volgorde van oefening in plan.
-        weight: Gewicht per set (kg).
-        workout_plan: Relatie naar WorkoutPlan.
-        exercise: Relatie naar Exercise.
-        set_logs: Relatie naar SetLog.
-
     Notities:
         - Ondersteunt flexibele configuratie van sets, reps, en gewicht.
         - Order-veld bepaalt weergavevolgorde in UI.
@@ -536,23 +414,6 @@ class WorkoutPlanExercise(db.Model):
 class ExerciseLog(db.Model):
     """
     Model voor het loggen van voltooide oefeningen.
-
-    Attributen:
-        id: Primaire sleutel.
-        user_id: Foreign key naar User.id.
-        exercise_id: Foreign key naar Exercise.id.
-        workout_plan_id: Foreign key naar WorkoutPlan.id (optioneel).
-        completed_at: Tijdstip van voltooiing.
-        completed: Vlag of oefening is voltooid.
-        sets: Aantal sets.
-        reps: Gemiddelde herhalingen.
-        weight: Gemiddeld gewicht (kg).
-        duration: Totale duur (minuten).
-        notes: Optionele opmerkingen.
-        user: Relatie naar User.
-        exercise: Relatie naar Exercise.
-        workout_plan: Relatie naar WorkoutPlan.
-
     Notities:
         - Gebruikt voor samenvatting van workout-prestaties.
         - Aggregatie van SetLog-data bij workout-voltooiing.
@@ -600,25 +461,6 @@ class ExerciseLog(db.Model):
 class SetLog(db.Model):
     """
     Model voor het loggen van individuele sets binnen een workout.
-
-    Attributen:
-        id: Primaire sleutel.
-        user_id: Foreign key naar User.id.
-        workout_plan_id: Foreign key naar WorkoutPlan.id (optioneel).
-        exercise_id: Foreign key naar Exercise.id.
-        workout_plan_exercise_id: Foreign key naar WorkoutPlanExercise.id (optioneel).
-        set_number: Volgnummer van de set.
-        reps: Aantal herhalingen.
-        weight: Gewicht (kg).
-        completed: Vlag of set is voltooid.
-        created_at: Aanmaaktijdstip.
-        completed_at: Voltooiingstijdstip.
-        workout_session_id: UUID van WorkoutSession.
-        user: Relatie naar User.
-        workout_plan: Relatie naar WorkoutPlan.
-        exercise: Relatie naar Exercise.
-        workout_plan_exercise: Relatie naar WorkoutPlanExercise.
-
     Notities:
         - Ondersteunt gedetailleerde logging van workout-progressie.
         - Gebruikt SET NULL voor workout_plan_id om integriteit te behouden bij plan-verwijdering.
@@ -667,21 +509,6 @@ class WorkoutSession(db.Model):
     """
     Model voor workout-sessies van gebruikers.
 
-    Attributen:
-        id: UUID-gebaseerde primaire sleutel.
-        user_id: Foreign key naar User.id.
-        workout_plan_id: Foreign key naar WorkoutPlan.id.
-        started_at: Starttijdstip.
-        completed_at: Voltooiingstijdstip.
-        duration_minutes: Duur in minuten.
-        total_sets: Totaal aantal sets.
-        total_reps: Totaal aantal herhalingen.
-        total_weight: Totaal gewicht (kg * reps).
-        is_completed: Vlag of sessie is voltooid.
-        is_archived: Vlag of sessie is gearchiveerd.
-        user: Relatie naar User.
-        workout_plan: Relatie naar WorkoutPlan.
-
     Notities:
         - Gebruikt UUID voor unieke sessie-identificatie.
         - Statistieken worden berekend via calculate_statistics.
@@ -704,10 +531,6 @@ class WorkoutSession(db.Model):
     def __init__(self, **kwargs):
         """
         Initialiseer WorkoutSession met tijdzone-correcties.
-
-        Args:
-            **kwargs: Attributen voor WorkoutSession.
-
         Notities:
             - Voegt UTC-tijdzone toe aan started_at en completed_at indien ontbrekend.
         """
