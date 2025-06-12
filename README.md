@@ -97,9 +97,4 @@ Oefeningen zoeken: Gebruik /search_exercise om oefeningen te vinden en toe te vo
 Gewicht loggen: Voeg gewichtlogs toe via /profile.
 Workouts uitvoeren: Start een workout-sessie via /start_workout/<id> en log sets/reps.
 
-### Ontwikkeling
-
-Debugging: De app draait in DEBUG-modus (DEBUG=True in config.py). Logs zijn beschikbaar in de console.
-Database-migraties: Gebruik flask db migrate en flask db upgrade na modelwijzigingen.
-Logging: Logging is geconfigureerd in app/__init__.py met een uniforme formatter.
 
