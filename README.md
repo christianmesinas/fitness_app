@@ -1,5 +1,6 @@
 FitTrack: Fitness Tracking Applicatie
 FitTrack is een webapplicatie waarmee gebruikers hun fitnessvoortgang kunnen bijhouden, workout-plannen kunnen maken en oefeningen kunnen beheren. De applicatie ondersteunt gebruikersauthenticatie via Auth0, gewichtlogs, workout-sessies en een zoekfunctie voor oefeningen.
+
 Projectstructuur
 
 app/: Bevat de Flask-applicatiecode.
