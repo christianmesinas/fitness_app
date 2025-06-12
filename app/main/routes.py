@@ -384,7 +384,6 @@ def generate_weight_chart_data(weights, user):
 
 
 def calculate_weight_statistics(weights):
-    """Bereken gewichtsstatistieken"""
     try:
         weight_values = [w.weight for w in weights]
         dates = [w.logged_at for w in weights]
