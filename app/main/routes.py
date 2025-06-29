@@ -19,7 +19,6 @@ from markupsafe import escape
 
 import json
 
-
 from .utils import get_workout_data, get_user_workout_plans, owns_workout_plan, fix_image_path, clean_instruction_text, check_onboarding_status
 from .. import db
 from ..models import User

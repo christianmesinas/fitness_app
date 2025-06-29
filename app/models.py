@@ -208,12 +208,6 @@ class User(db.Model):
         }
 
 exercise_muscle_association = sa.Table(
-    """
-    Associatietabel voor veel-op-veel-relatie tussen Exercise en ExerciseMuscle.
-    Notities:
-        - Gebruikt CASCADE om records te verwijderen bij verwijdering van Exercise of ExerciseMuscle.
-        - Ondersteunt filtering op primaire/secundaire spieren in relaties.
-    """
     'exercise_muscle_association',
     db.metadata,
     sa.Column('exercise_id', sa.String(50), sa.ForeignKey('exercise.id', ondelete='CASCADE'), primary_key=True),
