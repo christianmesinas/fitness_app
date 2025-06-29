@@ -1,6 +1,7 @@
 # FitTrack: Fitness Tracking Applicatie
 FitTrack is een webapplicatie waarmee gebruikers hun fitnessvoortgang kunnen bijhouden, workout-plannen kunnen maken en oefeningen kunnen beheren. De applicatie ondersteunt gebruikersauthenticatie via Auth0, gewichtlogs, workout-sessies en een zoekfunctie voor oefeningen.
-Projectstructuur
+
+### Projectstructuur
 
 app/: Bevat de Flask-applicatiecode.
 main/: Blueprint voor de hoofdfunctionaliteit (gebruikersbeheer, workouts, profielbeheer).
@@ -15,7 +16,7 @@ fittrack.py: Entrypoint voor het starten van de Flask-ontwikkelserver.
 seed_exercises.py: Script om oefeningen in de database te laden vanuit een CSV-bestand.
 .env.example: Voorbeeld van omgevingsvariabelen voor configuratie.
 
-Functionaliteit
+### Functionaliteit
 
 Gebruikersbeheer: Registratie en inloggen via Auth0, profielbeheer, en onboarding-stappen.
 Workout-plannen: Aanmaken, bewerken, archiveren en uitvoeren van workout-plannen.
@@ -23,7 +24,7 @@ Oefeningen: Zoeken en bekijken van oefeningen, toevoegen aan workout-plannen.
 Gewichtlogs: Bijhouden van gewicht en notities.
 Workout-sessies: Loggen van sets, reps en gewichten tijdens workouts.
 
-Vereisten
+### Vereisten
 
 Python 3.8+
 Docker (voor container-gebaseerde setup)
@@ -31,7 +32,7 @@ Een Auth0-account voor authenticatie
 SQLite (standaarddatabase voor development) of een andere SQL-database
 Vereiste Python-pakketten (zie requirements.txt)
 
-Installatie en setup (lokale ontwikkeling)
+### Installatie en setup (lokale ontwikkeling)
 
 Clone de repository:
 git clone <repository-url>
@@ -43,11 +44,11 @@ python -m venv venv
 source venv/bin/activate  # Op Windows: venv\Scripts\activate
 
 
-Installeer afhankelijkheden:
+### Installeer afhankelijkheden:
 pip install -r requirements.txt
 
 
-Configureer omgevingsvariabelen:
+### Configureer omgevingsvariabelen:
 
 
 Vul .env met je Auth0- en andere instellingen:APP_SECRET_KEY=your-secret-key-here
@@ -62,7 +63,7 @@ SERVER_PORT=5000
 
 
 
-Initialiseer de database:
+### Initialiseer de database:
 
 Voer database-migraties uit:flask db init
 flask db migrate
@@ -73,7 +74,7 @@ python seed_exercises.py
 
 
 
-Configureer omgevingsvariabelen:
+### Configureer omgevingsvariabelen:
 
 Zorg dat je .env-bestand is ingesteld.
 Voor een persistente database, zorg dat app.db lokaal bestaat.
@@ -87,7 +88,7 @@ Start de applicatie met:docker-compose up --build
 Dit herbouwt en start de container automatisch.
 
 
-Gebruik
+### Gebruik
 
 Inloggen/registreren: Ga naar http://localhost:5000/login of /signup en gebruik of maak je account aan.
 Onboarding: Voltooi de onboarding-stappen om je profiel in te stellen (naam, gewicht).
@@ -96,14 +97,4 @@ Oefeningen zoeken: Gebruik /search_exercise om oefeningen te vinden en toe te vo
 Gewicht loggen: Voeg gewichtlogs toe via /profile.
 Workouts uitvoeren: Start een workout-sessie via /start_workout/<id> en log sets/reps.
 
-Ontwikkeling
 
-Debugging: De app draait in DEBUG-modus (DEBUG=True in config.py). Logs zijn beschikbaar in de console.
-Database-migraties: Gebruik flask db migrate en flask db upgrade na modelwijzigingen.
-Logging: Logging is geconfigureerd in app/__init__.py met een uniforme formatter.
-
-
-Licentie
-Dit project is gelicentieerd onder de MIT-licentie (zie LICENSE voor details).
-Contact
-Voor vragen of ondersteuning, neem contact op via  of open een issue in de repository.
